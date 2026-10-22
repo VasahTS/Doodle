@@ -178,6 +178,8 @@ input[type=color].hidden-color { position: absolute; width: 0; height: 0; opacit
 #view { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
 #stage.c-none #view { cursor: none; }
 #stage.c-cross #view { cursor: crosshair; }
+/* laço: o próprio ícone do laço, com a ponta da cordinha marcando onde a seleção começa */
+#stage.c-lasso #view { cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke-linecap='round' stroke-linejoin='round'%3E%3Cg stroke='%23fff' stroke-width='3.6'%3E%3Cpath d='M7.5 16.2C4.8 15 3 13 3 10.5 3 6.4 7 3.5 12 3.5s9 2.9 9 7-4 7-9 7c-.9 0-1.7-.1-2.5-.3'/%3E%3Cpath d='M8.5 15.5c-1.6.4-2.5 1.4-2.5 2.6C6 19.7 7.3 21 9 21'/%3E%3C/g%3E%3Cg stroke='%2311131a' stroke-width='1.6'%3E%3Cpath d='M7.5 16.2C4.8 15 3 13 3 10.5 3 6.4 7 3.5 12 3.5s9 2.9 9 7-4 7-9 7c-.9 0-1.7-.1-2.5-.3' stroke-dasharray='2.2 2.4'/%3E%3Cpath d='M8.5 15.5c-1.6.4-2.5 1.4-2.5 2.6C6 19.7 7.3 21 9 21'/%3E%3C/g%3E%3C/svg%3E") 9 21, crosshair; }
 #stage.c-grab #view { cursor: grab; }
 #stage.c-grabbing #view { cursor: grabbing; }
 #stage.c-zoom #view { cursor: zoom-in; }
@@ -1534,14 +1536,19 @@ function render() {
   // Anel do pincel
   const t = currentToolForCursor();
   if (hover.inside && (t === 'brush' || t === 'eraser')) {
-    const rad = Math.max(1.5, (cfg(t).size / 2) * S.zoom);
-    vctx.beginPath(); vctx.arc(hover.sx, hover.sy, rad, 0, Math.PI * 2);
-    vctx.lineWidth = 2.5; vctx.strokeStyle = 'rgba(0,0,0,.45)'; vctx.stroke();
-    vctx.lineWidth = 1; vctx.strokeStyle = 'rgba(255,255,255,.95)'; vctx.stroke();
-    if (rad < 4) {
-      vctx.beginPath(); vctx.moveTo(hover.sx - 7, hover.sy); vctx.lineTo(hover.sx + 7, hover.sy);
-      vctx.moveTo(hover.sx, hover.sy - 7); vctx.lineTo(hover.sx, hover.sy + 7);
-      vctx.lineWidth = 1; vctx.strokeStyle = 'rgba(0,0,0,.6)'; vctx.stroke();
+    // sempre do tamanho real do pincel, mesmo bem pequeno (sem a cruz)
+    const rad = (cfg(t).size / 2) * S.zoom;
+    if (rad >= 2.5) {
+      vctx.beginPath(); vctx.arc(hover.sx, hover.sy, rad, 0, Math.PI * 2);
+      vctx.lineWidth = 2.5; vctx.strokeStyle = 'rgba(0,0,0,.45)'; vctx.stroke();
+      vctx.lineWidth = 1; vctx.strokeStyle = 'rgba(255,255,255,.95)'; vctx.stroke();
+    } else {
+      // pincel minúsculo: um ponto do tamanho do traço, com um contorno fino para aparecer em qualquer fundo
+      const r = Math.max(0.6, rad);
+      vctx.beginPath(); vctx.arc(hover.sx, hover.sy, r + 1, 0, Math.PI * 2);
+      vctx.fillStyle = 'rgba(255,255,255,.9)'; vctx.fill();
+      vctx.beginPath(); vctx.arc(hover.sx, hover.sy, r, 0, Math.PI * 2);
+      vctx.fillStyle = 'rgba(0,0,0,.85)'; vctx.fill();
     }
   }
 }
@@ -2263,7 +2270,7 @@ function currentToolForCursor() {
 function updateCursor() {
   const t = currentToolForCursor();
   stage.className = t === 'pan' ? (panning ? 'c-grabbing' : 'c-grab') : t === 'zoom' ? 'c-zoom' : t === 'rotate' ? 'c-rot'
-    : (t === 'brush' || t === 'eraser') ? 'c-none' : t === 'tf' ? '' : 'c-cross';
+    : (t === 'brush' || t === 'eraser') ? 'c-none' : t === 'tf' ? '' : t === 'lasso' ? 'c-lasso' : 'c-cross';
   if (t !== 'tf') view.style.cursor = '';
   requestRender();
 }
