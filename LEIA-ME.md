@@ -120,7 +120,7 @@ PNG para cada camada e uma lista com nome, opacidade e visibilidade.
 ## Publicar uma versão nova (para quem mantém o projeto)
 
 1. Mude o número em `src-tauri/tauri.conf.json` (`"version": "0.2.0"`, por exemplo).
-2. Envie para o GitHub e crie a etiqueta da versão: `git tag v0.2.0` e `git push origin main v0.2.0`.
+2. Envie para o GitHub e atualize a ramificação de publicação: `git push origin main` e `git push origin main:release`.
 3. O GitHub gera o instalador, publica em Releases e quem já tem o app recebe o aviso de atualização.
 
 As atualizações são assinadas com a chave guardada no segredo `TAURI_SIGNING_PRIVATE_KEY`

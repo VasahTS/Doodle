@@ -32,7 +32,7 @@ The whole interface lives in `src/index.html`. The Rust side (`src-tauri/`) open
 
 ## Releases
 
-Pushing a version tag (for example `v0.2.0`) runs `.github/workflows/release.yml`, which builds the Windows installer and the Linux AppImage and .deb on GitHub and attaches it to a release. Bump `version` in `src-tauri/tauri.conf.json` first.
+Updating the `release` branch (or pushing a version tag such as `v0.2.0`) runs `.github/workflows/release.yml`, which builds the Windows installer and the Linux AppImage and .deb on GitHub and attaches them to a release named after `version` in `src-tauri/tauri.conf.json`. Bump that number first.
 
 ## Updates
 

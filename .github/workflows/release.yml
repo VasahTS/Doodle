@@ -1,10 +1,12 @@
 # Builds the Windows and Linux installers and publishes them as a GitHub Release.
-# Runs when a version tag (v0.1.0, v0.2.0, ...) is pushed, or by hand from the Actions tab.
+# Runs when the `release` branch is updated, when a version tag (v0.2.0, ...) is pushed,
+# or by hand from the Actions tab. The version comes from src-tauri/tauri.conf.json.
 # The installed app checks the latest release's latest.json to update itself.
 name: Release
 
 on:
   push:
+    branches: [release]
     tags: ['v*']
   workflow_dispatch:
 
@@ -12,7 +14,45 @@ permissions:
   contents: write
 
 jobs:
+  create-release:
+    runs-on: ubuntu-latest
+    outputs:
+      release_id: ${{ steps.release.outputs.result }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: release
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const { version } = JSON.parse(fs.readFileSync('src-tauri/tauri.conf.json', 'utf8'));
+            const tag = `v${version}`;
+            const { owner, repo } = context.repo;
+            try {
+              const { data } = await github.rest.repos.getReleaseByTag({ owner, repo, tag });
+              core.info(`Release ${tag} already exists, adding files to it.`);
+              return data.id;
+            } catch (e) {
+              const body = [
+                '**Português**',
+                '- Windows: baixe `Doodle_..._x64-setup.exe` e dê dois cliques. Se o Windows avisar que o app não é assinado, clique em "Mais informações" e depois em "Executar assim mesmo".',
+                '- Linux: baixe o `.AppImage`, marque como executável (`chmod +x Doodle_*.AppImage`) e abra. Ou instale o `.deb` no Ubuntu/Debian.',
+                '- Depois de instalado, o app avisa sozinho quando sair uma versão nova.',
+                '',
+                '**English**',
+                '- Windows: download `Doodle_..._x64-setup.exe` and double-click it. If Windows warns the app is unsigned, click "More info", then "Run anyway".',
+                '- Linux: download the `.AppImage`, make it executable (`chmod +x Doodle_*.AppImage`) and run it. Or install the `.deb` on Ubuntu/Debian.',
+                '- Once installed, the app tells you when a new version is out.',
+              ].join('\n');
+              const { data } = await github.rest.repos.createRelease({
+                owner, repo, tag_name: tag, target_commitish: context.sha,
+                name: `Doodle ${tag}`, body, draft: false, prerelease: false,
+              });
+              return data.id;
+            }
+
   build:
+    needs: create-release
     strategy:
       fail-fast: false
       matrix:
@@ -44,7 +84,7 @@ jobs:
       - name: Install Tauri CLI
         run: npm install -g @tauri-apps/cli@^2
 
-      - name: Build and publish
+      - name: Build and upload to the release
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -54,17 +94,4 @@ jobs:
         with:
           tauriScript: tauri
           args: --bundles ${{ matrix.bundles }}
-          tagName: v__VERSION__
-          releaseName: Doodle v__VERSION__
-          releaseBody: |
-            **Português**
-            - Windows: baixe `Doodle_..._x64-setup.exe` e dê dois cliques. Se o Windows avisar que o app não é assinado, clique em "Mais informações" e depois em "Executar assim mesmo".
-            - Linux: baixe o `.AppImage`, marque como executável (`chmod +x Doodle_*.AppImage`) e abra. Ou instale o `.deb` no Ubuntu/Debian.
-            - Depois de instalado, o app avisa sozinho quando sair uma versão nova.
-
-            **English**
-            - Windows: download `Doodle_..._x64-setup.exe` and double-click it. If Windows warns the app is unsigned, click "More info", then "Run anyway".
-            - Linux: download the `.AppImage`, make it executable (`chmod +x Doodle_*.AppImage`) and run it. Or install the `.deb` on Ubuntu/Debian.
-            - Once installed, the app tells you when a new version is out.
-          releaseDraft: false
-          prerelease: false
+          releaseId: ${{ needs.create-release.outputs.release_id }}
