@@ -1,0 +1,47 @@
+# Builds the Windows installer and publishes it as a GitHub Release.
+# Runs when a version tag (v0.1.0, v0.2.0, ...) is pushed, or by hand from the Actions tab.
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: swatinem/rust-cache@v2
+        with:
+          workspaces: './src-tauri -> target'
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install Tauri CLI
+        run: npm install -g @tauri-apps/cli@^2
+
+      - name: Build installer and publish release
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tauriScript: tauri
+          tagName: v__VERSION__
+          releaseName: Doodle v__VERSION__
+          releaseBody: |
+            **Português:** baixe o arquivo `Doodle_..._x64-setup.exe` abaixo e dê dois cliques para instalar.
+            O Windows pode avisar que o app não é assinado: clique em "Mais informações" e depois em "Executar assim mesmo".
+
+            **English:** download `Doodle_..._x64-setup.exe` below and double-click it to install.
+            Windows may warn that the app is unsigned: click "More info", then "Run anyway".
+          releaseDraft: false
+          prerelease: false

@@ -1,0 +1,21 @@
+[package]
+name = "doodle"
+version = "0.1.0"
+description = "Doodle - app para rabiscar, com camadas"
+edition = "2021"
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
+tauri-plugin-dialog = "2"
+tauri-plugin-fs = "2"
+
+# Deixa o programa final menor e mais rápido
+[profile.release]
+codegen-units = 1
+lto = true
+opt-level = "s"
+panic = "abort"
+strip = true

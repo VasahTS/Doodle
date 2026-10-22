@@ -1,0 +1,64 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "Doodle",
+  "version": "0.1.0",
+  "identifier": "com.daniel.doodle",
+  "build": {
+    "frontendDist": "../src"
+  },
+  "app": {
+    "withGlobalTauri": true,
+    "windows": [
+      {
+        "label": "main",
+        "title": "Doodle",
+        "width": 1280,
+        "height": 820,
+        "minWidth": 820,
+        "minHeight": 520,
+        "center": true,
+        "dragDropEnabled": false
+      }
+    ],
+    "security": {
+      "csp": null
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": [
+      "nsis"
+    ],
+    "shortDescription": "Quick sketching with layers",
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ],
+    "fileAssociations": [
+      {
+        "ext": [
+          "ora"
+        ],
+        "name": "OpenRaster",
+        "description": "Desenho com camadas",
+        "mimeType": "image/openraster",
+        "role": "Editor"
+      }
+    ],
+    "windows": {
+      "nsis": {
+        "languages": [
+          "English",
+          "PortugueseBR"
+        ],
+        "displayLanguageSelector": false
+      }
+    },
+    "copyright": "Copyright (c) 2026 VasahTS. MIT License.",
+    "license": "MIT",
+    "homepage": "https://github.com/VasahTS/doodle"
+  }
+}
