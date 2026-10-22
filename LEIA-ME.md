@@ -3,6 +3,8 @@
 App para rabiscar rápido, com camadas, pressão da caneta e arquivos `.ora`.
 Feito com Tauri (Rust por baixo, interface em HTML).
 
+[Changelog em inglês](CHANGELOG.md) · [Futuras adições](future-additions/README.md) · [Registro da sessão do Codex](docs/sessions/2026-10-22-codex.md)
+
 ## Baixar pronto
 
 Na página do projeto no GitHub, abra **Releases**:
@@ -13,11 +15,13 @@ Na página do projeto no GitHub, abra **Releases**:
   No Ubuntu/Debian também dá para instalar o `.deb`. A atualização automática funciona no AppImage.
 
 Depois de instalado, o app procura atualizações sozinho (uma vez por dia) e mostra um aviso
-com o botão **Atualizar agora**. Também dá para procurar pelo menu do arquivo, em
+com o botão **Atualizar agora**. Também dá para procurar pela engrenagem **Configurações**, em
 **Procurar atualizações**. Ele baixa, instala e abre de novo, sem precisar entrar no GitHub.
 
-O app abre em português ou inglês conforme o idioma do Windows. Para trocar, clique no
-nome do arquivo, lá em cima, e escolha o idioma no fim do menu.
+O app abre em português ou inglês conforme o idioma do Windows. Para trocar, clique na
+engrenagem **Configurações**, no canto superior direito, e escolha em **Idioma**.
+O mesmo menu reúne **Atalhos** e **Procurar atualizações**. No navegador, a procura
+de atualizações fica desativada; ela funciona no aplicativo instalado.
 
 ## Já tem o Rust e o Tauri instalados?
 
@@ -33,7 +37,31 @@ Se você tinha a versão anterior, substitua a pasta inteira por esta.
 
 ## Atalhos
 
-O botão **Atalhos** (ou Ctrl+K) mostra todos e deixa trocar qualquer um:
+**Backspace** apaga o conteúdo dentro da seleção. Sem uma seleção, limpa todo o
+conteúdo da camada selecionada, mantendo a camada no painel. **Delete** também
+funciona como alternativa. **Ctrl+Z** recupera o conteúdo apagado.
+
+Com o **Laço** (`L`), os botões **Nova**, **+ Somar** e **− Subtrair** na barra
+escolhem como o próximo contorno modifica a seleção. **Shift** segurado soma uma
+área; **Ctrl** segurado subtrai uma área (**Alt** também funciona como alternativa).
+O cursor mostra **+** ou **−**, e o
+modo escolhido volta ao soltar a tecla. Segure a tecla antes de começar o contorno.
+**F** preenche a seleção com a cor principal, e **Ctrl+Z** desfaz. O antigo
+**Alt+Backspace** também continua disponível. Os atalhos podem ser personalizados.
+
+O pincel e a borracha aceitam tamanhos de **0,1 a 500 px**. Digite o tamanho no
+campo da barra ou use o controle ao lado. Abaixo de 1 px, os atalhos **[** e **]**
+mudam o tamanho de 0,1 em 0,1 px. A pressão também pode afinar o traço abaixo de
+1 px. O tamanho é medido em pixels do desenho; o zoom muda como ele aparece na tela.
+
+O **Liquify** (`J`) é um pincel na barra: arraste sobre a camada ativa para deformar.
+O tamanho fica na barra; no botão de ajustes, escolha **Empurrar**, **Expandir**,
+**Contrair** ou **Girar**, a força e se a pressão da caneta muda a força.
+Segure **Alt** para inverter expandir, contrair ou girar. Nos três últimos modos,
+manter a ponta pressionada no mesmo lugar continua o efeito.
+Respeita a seleção e a trava de transparência. Cada passada se desfaz com um **Ctrl+Z**.
+
+A opção **Configurações → Atalhos** (ou Ctrl+K) mostra todos e deixa trocar qualquer um:
 clique no atalho e aperte a tecla nova. O app guarda a sua escolha.
 
 Alguns que valem saber: **R** segurado e arrastando gira a tela, **'** volta para 0°,

@@ -28,22 +28,25 @@ jobs:
             const { version } = JSON.parse(fs.readFileSync('src-tauri/tauri.conf.json', 'utf8'));
             const tag = `v${version}`;
             const { owner, repo } = context.repo;
+            const lines = fs.readFileSync('CHANGELOG.md', 'utf8').split(/\r?\n/);
+            const start = lines.findIndex((line) => line.startsWith(`## [${version}]`));
+            if (start < 0) throw new Error(`Missing changelog entry for ${version}`);
+            let end = start + 1;
+            while (end < lines.length && !lines[end].startsWith('## ')) end++;
+            const notes = lines.slice(start + 1, end).join('\n').trim();
+            const body = [
+              notes, '', '### Downloads',
+              '- Windows: download the `Doodle_..._x64-setup.exe` installer from the assets below.',
+              '- Linux: the existing build also provides AppImage and Debian packages.',
+              '- Existing installations can check for this version from Settings → Check for updates.',
+            ].join('\n');
             try {
               const { data } = await github.rest.repos.getReleaseByTag({ owner, repo, tag });
-              core.info(`Release ${tag} already exists, adding files to it.`);
+              await github.rest.repos.updateRelease({ owner, repo, release_id: data.id, body });
+              core.info(`Release ${tag} already exists; refreshed its English notes.`);
               return data.id;
             } catch (e) {
-              const body = [
-                '**Português**',
-                '- Windows: baixe `Doodle_..._x64-setup.exe` e dê dois cliques. Se o Windows avisar que o app não é assinado, clique em "Mais informações" e depois em "Executar assim mesmo".',
-                '- Linux: baixe o `.AppImage`, marque como executável (`chmod +x Doodle_*.AppImage`) e abra. Ou instale o `.deb` no Ubuntu/Debian.',
-                '- Depois de instalado, o app avisa sozinho quando sair uma versão nova.',
-                '',
-                '**English**',
-                '- Windows: download `Doodle_..._x64-setup.exe` and double-click it. If Windows warns the app is unsigned, click "More info", then "Run anyway".',
-                '- Linux: download the `.AppImage`, make it executable (`chmod +x Doodle_*.AppImage`) and run it. Or install the `.deb` on Ubuntu/Debian.',
-                '- Once installed, the app tells you when a new version is out.',
-              ].join('\n');
+              if (e.status !== 404) throw e;
               const { data } = await github.rest.repos.createRelease({
                 owner, repo, tag_name: tag, target_commitish: context.sha,
                 name: `Doodle ${tag}`, body, draft: false, prerelease: false,

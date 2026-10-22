@@ -1,0 +1,50 @@
+# Changelog
+
+## [0.2.0] - 2026-10-22
+
+Implemented and documented by **Codex (OpenAI)** at Daniel's request.
+
+### Added
+
+- Inline Liquify brush (`J`) with Push, Expand, Pinch and Twirl modes, independent size and strength, optional pen-pressure strength, and Alt to reverse radial effects.
+- Local Liquify processing with a soft falloff, transparency-aware interpolation, selection and alpha-lock support, and one undo step per stroke.
+- Fractional brush and eraser sizes from 0.1 to 500 px, with decimal input, slider support and 0.1 px keyboard increments below 1 px.
+- New/Add/Subtract lasso controls in the toolbar, persistent selection mode, temporary modifier overrides and plus/minus cursor indicators.
+- `F` to fill a selection with the primary color; `Alt+Backspace` remains available as an alternate.
+- `Backspace` to clear selected pixels, or the selected layer's contents when no pixel selection is active, without deleting layer nodes. `Delete` remains an alternate.
+- A Settings gear in the top-right corner for keyboard shortcuts, language and update checks, with keyboard navigation, focus restoration and narrow-window positioning.
+- Browser regression checks for Liquify, fractional brush sizes, selection operations and outlines, Settings, content clearing, translations, saved settings and shortcut migration.
+- A `future-additions/` backlog for different brushes, anti-aliasing/aliased modes, improved pressure controls, canvas resizing and PhotoCraft feature references.
+- A session record crediting Codex and documenting final shortcuts, behavior, validation and remaining work.
+
+### Changed
+
+- Lasso modifiers now use Shift to add and Ctrl to subtract. Alt also subtracts for compatibility.
+- Language choices and manual update checks now live in Settings; the file menu is focused on document actions.
+- Existing default fill/clear shortcuts migrate to F/Backspace while preserving customized shortcuts.
+- English and Brazilian Portuguese documentation and UI strings cover the new tools and controls.
+- Release notes are populated from this English changelog.
+
+### Fixed
+
+- Removed the 0.8 px minimum diameter that prevented pen pressure from producing finer marks.
+- Stabilized tiny brush-stamp rasterization using subpixel coverage while retaining the previous full-pressure rendering at 1 px and above.
+- Selection outlines now follow the final mask after addition and subtraction, instead of drawing overlapping historical lasso paths. Holes, disjoint areas, inversion, transforms and undo/redo are supported, with a cached outline for animation.
+- Clarified that clearing selection/layer contents is separate from deleting a layer.
+- Synchronized the Tauri, Cargo manifest and application lockfile versions for this release.
+
+### Validation
+
+- Automated checks cover simulated pen pressure, exact undo/redo, `.ora` round trips, display scales of 100%/150%/200%, keyboard input and both UI languages.
+- The updater UI is tested with a local stub; release installers are built by the existing GitHub Actions workflow.
+- Physical tablet calibration remains a manual check. Broader brush types, anti-aliasing controls and canvas resizing are tracked as future work.
+
+## [0.1.1] - 2026-10-22
+
+Existing release, preceding the Codex session.
+
+- Show a real-size dot for small brush and eraser cursors.
+- Use the lasso icon as the lasso cursor.
+
+[0.2.0]: https://github.com/VasahTS/Doodle/compare/v0.1.1...v0.2.0
+[0.1.1]: https://github.com/VasahTS/Doodle/releases/tag/v0.1.1

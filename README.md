@@ -5,16 +5,23 @@ Built with [Tauri](https://tauri.app) (Rust underneath, HTML interface). Availab
 
 **[Download for Windows and Linux](../../releases/latest)**
 
+[Changelog](CHANGELOG.md) · [Future additions](future-additions/README.md) · [Codex session record](docs/sessions/2026-10-22-codex.md)
+
 ## Features
 
 - **Pen pressure** on size and/or opacity, adjustable pressure curve and stabilizer
 - **Brush and eraser with their own settings** (size, opacity, pressure)
+- **Fractional brush and eraser sizes** from 0.1 to 500 px, including pen pressure below 1 px; `[` / `]` adjust sizes below 1 px in 0.1 px steps
+- **Liquify brush** (`J`): push, expand, pinch or twirl directly on the canvas, with its own size and strength, optional pen pressure, selection and alpha lock support. Hold `Alt` to reverse expand, pinch or twirl. Each stroke is one undo step.
 - **Layers and folders**, multi-select with Ctrl+click / Shift+click, drag to reorder or into folders
 - **Lock transparent pixels** (`/`) and **clip to layer below** (`Ctrl+Alt+G`)
 - **Lasso** selection with add/subtract, a floating action bar, cut/copy to new layers across all selected layers
+- **Lasso modes in the toolbar**: new, add and subtract; hold `Shift` to add, `Ctrl` to subtract (`Alt` also subtracts). `F` fills the selection with the main color (`Alt+Backspace` also works).
+- **Backspace clears contents** inside the selection, or the entire selected layer when no selection is active, preserving the layer. `Delete` also works; undo restores the pixels.
 - **Free transform** (`Ctrl+T`): move, scale, rotate, skew, distort, flip, with a right-click menu
 - **Canvas rotation** (hold `R` and drag, `'` resets), **drag zoom** (hold `Z`), **mirrored view** (`F1`)
-- **Every shortcut can be changed** (Shortcuts button or `Ctrl+K`)
+- **Every shortcut can be changed** (Settings → Shortcuts or `Ctrl+K`)
+- **Settings menu** in the top-right gear: keyboard shortcuts, language and update checks
 - **Updates itself** from GitHub releases, no need to visit the repository
 - Saves **OpenRaster (.ora)**, which Krita, GIMP and MyPaint also open; exports PNG
 
@@ -36,7 +43,7 @@ Updating the `release` branch (or pushing a version tag such as `v0.2.0`) runs `
 
 ## Updates
 
-The installed app checks this repository's latest release about once a day (and from **File → Check for updates**). Updates are downloaded and installed from inside the app, then it reopens.
+The installed app checks this repository's latest release about once a day (and from **Settings → Check for updates**). Updates are downloaded and installed from inside the app, then it reopens. The Settings gear also contains the language options and shortcut editor (`Ctrl+K`).
 
 Update files are signed. The workflow reads the private key from the repository secret `TAURI_SIGNING_PRIVATE_KEY`; the matching public key is in `src-tauri/tauri.conf.json`. Without that secret the release build fails on purpose.
 

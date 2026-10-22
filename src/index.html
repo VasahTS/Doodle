@@ -104,6 +104,10 @@ svg.i.s { width: 16px; height: 16px; }
 }
 .dropdown .ctx-item .ic { display: grid; place-items: center; width: 18px; color: var(--muted); }
 .dropdown .info { padding: 6px 10px 4px; font: 11px var(--num); color: var(--muted); }
+#settingsMenu { width: 280px; min-width: 0; max-width: calc(100vw - 16px); max-height: calc(100dvh - 56px); overflow-y: auto; }
+#settingsMenu .menu-title { padding: 10px 10px 8px; font-weight: 620; }
+#settingsMenu .info { line-height: 1.5; }
+#settingsMenu .ctx-item:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; background: var(--hover); }
 
 /* ---------- Balão de ajustes (acima do dock) ---------- */
 #opts {
@@ -115,6 +119,7 @@ svg.i.s { width: 16px; height: 16px; }
 #opts .opt { justify-content: space-between; gap: 12px; }
 #opts .opt .hint { white-space: normal; max-width: 340px; line-height: 1.45; }
 #opts h3 { margin: 0; font-size: 13px; font-weight: 620; }
+#optLiquifyMode { background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 4px 8px; }
 .opt { display: flex; align-items: center; gap: 8px; flex: none; }
 .opt > span:first-child { color: var(--muted); font-size: 12px; }
 .opt input[type=range] { width: 110px; accent-color: var(--accent); }
@@ -129,6 +134,8 @@ svg.i.s { width: 16px; height: 16px; }
 }
 .chip[aria-pressed="true"] { background: var(--accent); color: var(--accent-fg); border-color: var(--accent); }
 .chip.primary { background: var(--accent); color: var(--accent-fg); border-color: var(--accent); }
+.lasso-modes { gap: 4px; }
+.lasso-modes .chip { padding: 0 8px; }
 .hint { color: var(--muted); font-size: 12px; }
 .hint b { color: var(--fg); font-weight: 560; }
 .check { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; font-size: 12px; }
@@ -351,8 +358,8 @@ input[type=color].hidden-color { position: absolute; width: 0; height: 0; opacit
     <span class="viewinfo" id="stPen">Entrada: —</span>
     <button class="btn" id="btnFit" data-act="view.fit" aria-label="Encaixar na tela"><svg class="i"><use href="#i-fit"/></svg></button>
     <button class="btn" id="btnMirror" data-act="view.mirror" aria-label="Espelhar a vista" aria-pressed="false"><svg class="i"><use href="#i-mirror"/></svg></button>
-    <button class="btn" id="btnKeys" data-act="app.keys" aria-label="Atalhos"><svg class="i"><use href="#i-help"/></svg><span class="lbl">Atalhos</span></button>
     <button class="btn" id="btnLayersToggle" aria-label="Mostrar camadas" title="Camadas"><svg class="i"><use href="#i-layers"/></svg></button>
+    <button class="btn" id="btnSettings" aria-label="Configurações" title="Configurações" aria-haspopup="menu" aria-controls="settingsMenu" aria-expanded="false"><svg class="i"><use href="#i-gear"/></svg></button>
   </header>
 
   <div class="dropdown" id="fileMenu" role="menu" hidden>
@@ -364,12 +371,18 @@ input[type=color].hidden-color { position: absolute; width: 0; height: 0; opacit
     <button class="ctx-item" role="menuitem" data-act="file.export"><span class="ic"><svg class="i s"><use href="#i-export"/></svg></span>Exportar PNG<span class="kb"></span></button>
     <div class="ctx-sep"></div>
     <div class="info" id="stSize"></div>
-    <div class="ctx-sep" data-app-only hidden></div>
-    <button class="ctx-item" role="menuitem" id="btnUpdates" data-app-only hidden><span class="ic"><svg class="i s"><use href="#i-download"/></svg></span>Procurar atualizações<span class="kb" id="appVersion"></span></button>
+  </div>
+
+  <div class="dropdown" id="settingsMenu" role="menu" aria-label="Configurações" hidden>
+    <div class="menu-title">Configurações</div>
+    <button class="ctx-item" id="btnKeys" role="menuitem" data-act="app.keys"><span class="ic"><svg class="i s"><use href="#i-help"/></svg></span>Atalhos<span class="kb"></span></button>
     <div class="ctx-sep"></div>
     <div class="info">Idioma</div>
     <button class="ctx-item" role="menuitemradio" data-lang="pt"><span class="ck"></span>Português (Brasil)</button>
     <button class="ctx-item" role="menuitemradio" data-lang="en"><span class="ck"></span>English (US)</button>
+    <div class="ctx-sep"></div>
+    <button class="ctx-item" role="menuitem" id="btnUpdates" disabled><span class="ic"><svg class="i s"><use href="#i-download"/></svg></span>Procurar atualizações<span class="kb" id="appVersion"></span></button>
+    <div class="info" id="updatesBrowserHint">Atualizações disponíveis no aplicativo instalado.</div>
   </div>
 
   <main id="stage" class="c-none">
@@ -413,6 +426,21 @@ input[type=color].hidden-color { position: absolute; width: 0; height: 0; opacit
         <span>Estabilizador</span>
         <span style="display:flex;align-items:center;gap:8px"><input type="range" id="optSmooth" min="0" max="90" aria-label="Estabilizador"><span class="val" id="optSmoothVal"></span></span>
       </div>
+      <div class="opt" data-for="liquify">
+        <label for="optLiquifyMode">Modo</label>
+        <select id="optLiquifyMode">
+          <option value="push">Empurrar</option><option value="expand">Expandir</option>
+          <option value="pinch">Contrair</option><option value="twirl">Girar</option>
+        </select>
+      </div>
+      <div class="opt" data-for="liquify">
+        <span>Força</span>
+        <span style="display:flex;align-items:center;gap:8px"><input type="range" id="optLiquifyStrength" min="1" max="100" aria-label="Força"><span class="val" id="optLiquifyStrengthVal"></span></span>
+      </div>
+      <div class="opt" data-for="liquify">
+        <label class="check"><input type="checkbox" id="optLiquifyPressure"> Pressão muda a força</label>
+      </div>
+      <div class="opt" data-for="liquify"><span class="hint">Arraste para deformar a camada ativa. Alt inverte expandir, contrair e girar. Respeita a seleção e a trava de transparência.</span></div>
       <div class="opt" data-for="fill">
         <span>Tolerância</span>
         <span style="display:flex;align-items:center;gap:8px"><input type="range" id="optTol" min="0" max="255" aria-label="Tolerância"><span class="val" id="optTolVal"></span></span>
@@ -437,6 +465,7 @@ input[type=color].hidden-color { position: absolute; width: 0; height: 0; opacit
     <div id="dock" role="toolbar" aria-label="Ferramentas">
       <button class="tool" data-tool="brush" data-act="tool.brush" aria-label="Pincel"><svg class="i"><use href="#i-brush"/></svg><kbd></kbd></button>
       <button class="tool" data-tool="eraser" data-act="tool.eraser" aria-label="Borracha"><svg class="i"><use href="#i-eraser"/></svg><kbd></kbd></button>
+      <button class="tool" data-tool="liquify" data-act="tool.liquify" aria-label="Liquify"><svg class="i"><use href="#i-liquify"/></svg><kbd></kbd></button>
       <button class="tool" data-tool="lasso" data-act="tool.lasso" aria-label="Laço"><svg class="i"><use href="#i-lasso"/></svg><kbd></kbd></button>
       <button class="tool" data-tool="fill" data-act="tool.fill" aria-label="Balde"><svg class="i"><use href="#i-fill"/></svg><kbd></kbd></button>
       <button class="tool" data-tool="picker" data-act="tool.picker" aria-label="Conta-gotas"><svg class="i"><use href="#i-picker"/></svg><kbd></kbd></button>
@@ -451,10 +480,15 @@ input[type=color].hidden-color { position: absolute; width: 0; height: 0; opacit
       <button class="btn" id="btnSwap" data-act="color.swap" aria-label="Trocar cores"><svg class="i s"><use href="#i-swap"/></svg></button>
       <div class="palette" id="palette"></div>
       <div class="dsep"></div>
-      <div class="sizebox opt" data-for="brush eraser">
+      <div class="opt lasso-modes" data-for="lasso" role="group" aria-label="Modo da seleção">
+        <button class="chip" data-lasso-mode="replace" aria-pressed="true" title="Nova seleção">Nova</button>
+        <button class="chip" data-lasso-mode="add" aria-pressed="false" title="Adicionar à seleção">+ Somar</button>
+        <button class="chip" data-lasso-mode="sub" aria-pressed="false" title="Subtrair da seleção">− Subtrair</button>
+      </div>
+      <div class="sizebox opt" data-for="brush eraser liquify">
         <span id="dockDot" aria-hidden="true"><span></span></span>
         <input type="range" id="optSize" min="0" max="1000" aria-label="Tamanho">
-        <input type="number" id="optSizeNum" min="1" max="500" aria-label="Tamanho em pixels">
+        <input type="number" id="optSizeNum" min="0.1" max="500" step="0.1" aria-label="Tamanho em pixels">
       </div>
       <button class="btn" id="btnOpts" aria-label="Ajustes da ferramenta" title="Ajustes da ferramenta" aria-expanded="false"><svg class="i"><use href="#i-sliders"/></svg></button>
       <div class="dsep"></div>
@@ -551,6 +585,7 @@ input[type=color].hidden-color { position: absolute; width: 0; height: 0; opacit
 <svg width="0" height="0" style="position:absolute" aria-hidden="true">
   <symbol id="i-brush" viewBox="0 0 24 24"><path d="M14.5 4.5l5 5L10 19l-5.5 1 1-5.5z"/><path d="M12.5 6.5l5 5"/></symbol>
   <symbol id="i-eraser" viewBox="0 0 24 24"><path d="M9 20h11"/><path d="M4.7 14.3l9.6-9.6a1.4 1.4 0 012 0l3 3a1.4 1.4 0 010 2L11 18.1a2 2 0 01-1.4.6H8.2a2 2 0 01-1.4-.6l-2.1-2.1a1.2 1.2 0 010-1.7z"/><path d="M9.5 9.5l5 5"/></symbol>
+  <symbol id="i-liquify" viewBox="0 0 24 24"><path d="M4 5c10-5 0 9 10 5s6 8-2 9M4 12c5-3 4 5 1 7M16 3c-2 3 5 2 4 6"/></symbol>
   <symbol id="i-lasso" viewBox="0 0 24 24"><path d="M7.5 16.2C4.8 15 3 13 3 10.5 3 6.4 7 3.5 12 3.5s9 2.9 9 7-4 7-9 7c-.9 0-1.7-.1-2.5-.3" stroke-dasharray="2.2 2.4"/><path d="M8.5 15.5c-1.6.4-2.5 1.4-2.5 2.6C6 19.7 7.3 21 9 21"/><circle cx="9.5" cy="15.8" r="1.6"/></symbol>
   <symbol id="i-fill" viewBox="0 0 24 24"><path d="M4.5 11.5L11 5l7 7-6.5 6.5a1.4 1.4 0 01-2 0l-5-5a1.4 1.4 0 010-2z"/><path d="M4 12.5h14"/><path d="M8.5 3l3 3"/><path d="M20.5 15.5s1.5 2 1.5 3a1.5 1.5 0 01-3 0c0-1 1.5-3 1.5-3z"/></symbol>
   <symbol id="i-picker" viewBox="0 0 24 24"><path d="M14 6l4 4"/><path d="M15.5 3.5a2.1 2.1 0 013 0l2 2a2.1 2.1 0 010 3L18 11l-5-5z"/><path d="M13 7l-8 8-.8 3.5L5.5 20 9 19.2l8-8"/></symbol>
@@ -564,6 +599,7 @@ input[type=color].hidden-color { position: absolute; width: 0; height: 0; opacit
   <symbol id="i-fit" viewBox="0 0 24 24"><path d="M4 9V5.5A1.5 1.5 0 015.5 4H9M15 4h3.5A1.5 1.5 0 0120 5.5V9M20 15v3.5a1.5 1.5 0 01-1.5 1.5H15M9 20H5.5A1.5 1.5 0 014 18.5V15"/><rect x="8" y="8" width="8" height="8" rx="1"/></symbol>
   <symbol id="i-mirror" viewBox="0 0 24 24"><path d="M12 3v18" stroke-dasharray="2 2.2"/><path d="M9 6L3 18h6z"/><path d="M15 6l6 12h-6z"/></symbol>
   <symbol id="i-help" viewBox="0 0 24 24"><rect x="2.5" y="6" width="19" height="12" rx="2"/><path d="M6 10h.01M9.5 10h.01M13 10h.01M16.5 10h.01M7 14h10"/></symbol>
+  <symbol id="i-gear" viewBox="0 0 24 24"><path d="M10 3h4l.6 2.4 2 .9 2.2-.7 2 3.4-1.7 1.7v2.6l1.7 1.7-2 3.4-2.2-.7-2 .9L14 21h-4l-.6-2.4-2-.9-2.2.7-2-3.4 1.7-1.7v-2.6L3.2 9l2-3.4 2.2.7 2-.9z"/><circle cx="12" cy="12" r="3"/></symbol>
   <symbol id="i-layers" viewBox="0 0 24 24"><path d="M12 3.5l9 4.5-9 4.5-9-4.5z"/><path d="M3 12l9 4.5 9-4.5"/><path d="M3 16l9 4.5 9-4.5"/></symbol>
   <symbol id="i-swap" viewBox="0 0 24 24"><path d="M4 8h13l-3.5-3.5"/><path d="M20 16H7l3.5 3.5"/></symbol>
   <symbol id="i-eye" viewBox="0 0 24 24"><path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z"/><circle cx="12" cy="12" r="3"/></symbol>
@@ -603,6 +639,18 @@ input[type=color].hidden-color { position: absolute; width: 0; height: 0; opacit
    Idiomas: pt-BR (o texto original) e en-US
    ========================================================= */
 const EN = {
+  'Configurações': 'Settings',
+  'Atualizações disponíveis no aplicativo instalado.': 'Updates are available in the installed app.',
+  'Modo da seleção': 'Selection mode', 'Nova seleção': 'New selection', 'Nova': 'New',
+  'Adicionar à seleção': 'Add to selection', 'Subtrair da seleção': 'Subtract from selection',
+  '+ Somar': '+ Add', '− Subtrair': '− Subtract',
+  'Preencher a seleção (alternativo)': 'Fill selection (alternate)',
+  'Contorne a área. <b>Shift</b> soma, <b>Ctrl</b> subtrai. ': 'Outline the area. <b>Shift</b> adds, <b>Ctrl</b> subtracts. ',
+  '</b> preenche com a cor principal, ': '</b> fills with the main color, ',
+  'Liquify': 'Liquify', 'Ajustes do liquify': 'Liquify settings', 'Modo': 'Mode',
+  'Empurrar': 'Push', 'Expandir': 'Expand', 'Contrair': 'Pinch', 'Girar': 'Twirl',
+  'Força': 'Strength', 'Pressão muda a força': 'Pressure changes strength',
+  'Arraste para deformar a camada ativa. Alt inverte expandir, contrair e girar. Respeita a seleção e a trava de transparência.': 'Drag to warp the active layer. Alt reverses expand, pinch and twirl. Respects selection and alpha lock.',
   // interface fixa
   'A4 (150 dpi)': 'A4 (150 dpi)', 'A4 (300 dpi)': 'A4 (300 dpi)',
   'Abaixo de 1: toque leve já marca forte. Acima de 1: precisa apertar mais.': 'Below 1: a light touch already marks strongly. Above 1: you need to press harder.',
@@ -680,7 +728,7 @@ const EN = {
   'Trocar cor principal e secundária': 'Swap main and secondary color', 'Cores padrão (preto e branco)': 'Default colors (black and white)',
   'Voltar a rotação para 0°': 'Reset rotation to 0°', 'Tamanho real': 'Actual size', 'Aproximar': 'Zoom in', 'Afastar': 'Zoom out',
   'Transformar (mover, girar, escalar)': 'Transform (move, rotate, scale)', 'Selecionar tudo': 'Select all', 'Recortar': 'Cut', 'Copiar': 'Copy', 'Colar': 'Paste',
-  'Apagar a seleção (ou a camada)': 'Delete selection (or layer)', 'Apagar fora da seleção': 'Erase outside selection', 'Preencher a seleção com a cor': 'Fill selection with color',
+  'Apagar conteúdo da seleção ou da camada': 'Clear selection or layer contents', 'Apagar conteúdo (alternativo)': 'Clear contents (alternate)', 'Apagar fora da seleção': 'Erase outside selection', 'Preencher a seleção com a cor': 'Fill selection with color',
   'Agrupar em pasta': 'Group into folder', 'Desfazer pasta': 'Ungroup folder', 'Apagar camada': 'Delete layer', 'Selecionar a de cima': 'Select layer above', 'Selecionar a de baixo': 'Select layer below',
   'Ver e trocar atalhos': 'View and change shortcuts',
   // transformar
@@ -797,11 +845,12 @@ const DEFAULT_TOOLS = {
   brush: { size: 14, opacity: 1, pSize: true, pOpac: false, curve: 1, smoothing: 0.35 },
   eraser: { size: 40, opacity: 1, pSize: false, pOpac: false, curve: 1, smoothing: 0.2 },
   fill: { opacity: 1 },
+  liquify: { size: 160, strength: 0.4, pStrength: true, mode: 'push', curve: 1, smoothing: 0 },
 };
 const S = Object.assign({
   tool: 'brush',
   color: '#1f2430', color2: '#ffffff',
-  tolerance: 40, sampleAll: true, layersPinned: true,
+  tolerance: 40, sampleAll: true, layersPinned: true, lassoMode: 'replace',
 }, SAVED, {
   zoom: 1, rot: 0, panX: 0, panY: 0, flip: false,
   fileName: 'Sem título', filePath: null, fileHandle: null, dirty: false,
@@ -809,13 +858,14 @@ const S = Object.assign({
 // cada ferramenta guarda seu próprio tamanho e ajustes
 S.tools = {};
 for (const k in DEFAULT_TOOLS) S.tools[k] = Object.assign({}, DEFAULT_TOOLS[k], (SAVED.tools || {})[k] || {});
-function cfg(t = S.tool) { return S.tools[t === 'eraser' ? 'eraser' : t === 'fill' ? 'fill' : 'brush']; }
+if (!['replace', 'add', 'sub'].includes(S.lassoMode)) S.lassoMode = 'replace';
+function cfg(t = S.tool) { return S.tools[t] || S.tools.brush; }
 let saveTimer = 0;
 function saveSettingsSoon() {
   clearTimeout(saveTimer);
   saveTimer = setTimeout(() => store('doodle.settings', {
     tool: S.tool === 'pan' || S.tool === 'picker' ? 'brush' : S.tool, color: S.color, color2: S.color2,
-    tools: S.tools, tolerance: S.tolerance, sampleAll: S.sampleAll, layersPinned: S.layersPinned, lang: LANG,
+    tools: S.tools, tolerance: S.tolerance, sampleAll: S.sampleAll, layersPinned: S.layersPinned, lassoMode: S.lassoMode, lang: LANG,
   }), 300);
 }
 
@@ -942,13 +992,13 @@ function pushHistory(entry) {
   updateHistoryButtons();
 }
 function undo() {
-  if (stroke) return;
+  if (stroke || liquify) return;
   if (tf) { tfUndo(); return; }
   const e = undoStack.pop(); if (!e) return;
   e.undo(); redoStack.push(e); afterHistory(e);
 }
 function redo() {
-  if (stroke || tf) return;
+  if (stroke || liquify || tf) return;
   const e = redoStack.pop(); if (!e) return;
   e.redo(); undoStack.push(e); afterHistory(e);
 }
@@ -1477,9 +1527,46 @@ function composeScratch(l) {
 }
 
 let antsOffset = 0;
-function tracePolys(ctx, polys) {
-  ctx.beginPath();
-  for (const p of polys) { p.pts.forEach((q, i) => (i ? ctx.lineTo(q.x, q.y) : ctx.moveTo(q.x, q.y))); ctx.closePath(); }
+function selectionOutline(sel) {
+  if (sel.outline) return sel.outline;
+  // O pontilhado vem da máscara final, não dos gestos que a construíram.
+  // Cada aresta separa um pixel selecionado de um pixel não selecionado.
+  const b = sel.bbox, img = sel.mctx.getImageData(b.x, b.y, b.w, b.h), pixels = img.data;
+  const stride = doc.W + 1, edges = new Map(), steps = [1, stride, -1, -stride];
+  const inside = (x, y) => x >= 0 && y >= 0 && x < b.w && y < b.h && pixels[(y * b.w + x) * 4 + 3] > 0;
+  const edge = (x, y, direction) => {
+    const key = (b.y + y) * stride + b.x + x;
+    edges.set(key, (edges.get(key) || 0) | (1 << direction));
+  };
+  for (let y = 0; y < b.h; y++) for (let x = 0; x < b.w; x++) {
+    if (!inside(x, y)) continue;
+    if (!inside(x, y - 1)) edge(x, y, 0);
+    if (!inside(x + 1, y)) edge(x + 1, y, 1);
+    if (!inside(x, y + 1)) edge(x + 1, y + 1, 2);
+    if (!inside(x - 1, y)) edge(x, y + 1, 3);
+  }
+  const path = new Path2D(), contours = [];
+  while (edges.size) {
+    const start = edges.keys().next().value, pts = [];
+    let key = start, previous = -1, area = 0;
+    do {
+      const bits = edges.get(key);
+      // Vira à direita primeiro: áreas que se tocam só num canto ficam separadas.
+      const choices = previous < 0 ? [0, 1, 2, 3] : [(previous + 1) % 4, previous, (previous + 3) % 4, (previous + 2) % 4];
+      const direction = choices.find((d) => bits & (1 << d));
+      const x = key % stride, y = Math.floor(key / stride), next = key + steps[direction];
+      if (direction !== previous) pts.push({ x, y });
+      const left = bits & ~(1 << direction);
+      if (left) edges.set(key, left); else edges.delete(key);
+      area += x * Math.floor(next / stride) - (next % stride) * y;
+      previous = direction; key = next;
+    } while (key !== start);
+    pts.forEach((p, i) => i ? path.lineTo(p.x, p.y) : path.moveTo(p.x, p.y));
+    path.closePath(); contours.push({ pts, sub: area < 0 });
+  }
+  // Reutilizado nos quadros da animação; só a alteração da máscara invalida o cache.
+  sel.contours = contours; sel.outline = path;
+  return path;
 }
 function render() {
   renderQueued = false;
@@ -1508,9 +1595,9 @@ function render() {
   // Linhas da seleção (formigas andando)
   const lw = 1 / S.zoom;
   if (selection && !tf) {
-    tracePolys(vctx, selection.polys);
-    vctx.lineWidth = lw; vctx.setLineDash([]); vctx.strokeStyle = 'rgba(255,255,255,.95)'; vctx.stroke();
-    vctx.setLineDash([5 * lw, 5 * lw]); vctx.lineDashOffset = antsOffset * lw; vctx.strokeStyle = '#11131a'; vctx.stroke();
+    const outline = selectionOutline(selection);
+    vctx.lineWidth = lw; vctx.setLineDash([]); vctx.strokeStyle = 'rgba(255,255,255,.95)'; vctx.stroke(outline);
+    vctx.setLineDash([5 * lw, 5 * lw]); vctx.lineDashOffset = antsOffset * lw; vctx.strokeStyle = '#11131a'; vctx.stroke(outline);
     vctx.setLineDash([]);
   }
   if (lasso && lasso.pts.length > 1) {
@@ -1535,7 +1622,17 @@ function render() {
   }
   // Anel do pincel
   const t = currentToolForCursor();
-  if (hover.inside && (t === 'brush' || t === 'eraser')) {
+  if (hover.inside && t === 'lasso') {
+    const mode = lasso ? lasso.mode : effectiveLassoMode();
+    if (mode !== 'replace') {
+      vctx.save(); vctx.font = 'bold 17px system-ui'; vctx.textAlign = 'center';
+      vctx.lineWidth = 3; vctx.strokeStyle = '#fff'; vctx.fillStyle = '#11131a';
+      const symbol = mode === 'add' ? '+' : '−';
+      vctx.strokeText(symbol, hover.sx + 17, hover.sy + 3); vctx.fillText(symbol, hover.sx + 17, hover.sy + 3);
+      vctx.restore();
+    }
+  }
+  if (hover.inside && (t === 'brush' || t === 'eraser' || t === 'liquify')) {
     // sempre do tamanho real do pincel, mesmo bem pequeno (sem a cruz)
     const rad = (cfg(t).size / 2) * S.zoom;
     if (rad >= 2.5) {
@@ -1557,7 +1654,7 @@ setInterval(() => { if (selection && !tf) { antsOffset = (antsOffset + 1) % 10; 
 /* =========================================================
    Pincel com pressão
    ========================================================= */
-let stroke = null;
+let stroke = null, liquify = null;
 const hover = { inside: false, sx: 0, sy: 0, x: 0, y: 0 };
 
 function pressureOf(e, c) {
@@ -1566,7 +1663,7 @@ function pressureOf(e, c) {
   if (!(p > 0)) p = stroke ? stroke.lp : 0.15;
   return Math.pow(clamp(p, 0, 1), c.curve);
 }
-function radiusFor(p, c) { return c.pSize ? Math.max(0.4, (c.size / 2) * (0.06 + 0.94 * p)) : c.size / 2; }
+function radiusFor(p, c) { return (c.size / 2) * (c.pSize ? 0.06 + 0.94 * p : 1); }
 function spacingFor(p, c) { return Math.max(0.4, radiusFor(p, c) * 0.18); }
 
 function stamp(x, y, p) {
@@ -1576,11 +1673,14 @@ function stamp(x, y, p) {
     const overlap = Math.max(1, (2 * r) / spacingFor(p, c));
     a = 1 - Math.pow(1 - clamp(p, 0.02, 1), 1 / overlap);
   }
-  strokeCtx.globalAlpha = a;
-  strokeCtx.beginPath(); strokeCtx.arc(x, y, r, 0, Math.PI * 2); strokeCtx.fill();
+  // Abaixo de 1 px, representa a área do carimbo pela cobertura do pixel.
+  // Evita a rasterização irregular de círculos minúsculos sem mudar os traços >= 1 px.
+  const rasterRadius = Math.max(0.5, r), coverage = Math.min(1, (r * 2) ** 2);
+  strokeCtx.globalAlpha = a * coverage;
+  strokeCtx.beginPath(); strokeCtx.arc(x, y, rasterRadius, 0, Math.PI * 2); strokeCtx.fill();
   const b = stroke.bbox;
-  if (x - r < b[0]) b[0] = x - r; if (y - r < b[1]) b[1] = y - r;
-  if (x + r > b[2]) b[2] = x + r; if (y + r > b[3]) b[3] = y + r;
+  if (x - rasterRadius < b[0]) b[0] = x - rasterRadius; if (y - rasterRadius < b[1]) b[1] = y - rasterRadius;
+  if (x + rasterRadius > b[2]) b[2] = x + rasterRadius; if (y + rasterRadius > b[3]) b[3] = y + rasterRadius;
 }
 function drawableLayer() {
   const l = doc.active;
@@ -1647,19 +1747,137 @@ function intersect(a, b) {
 }
 
 /* =========================================================
+   Liquify: deformação local, sem copiar a tela inteira por movimento.
+   O histórico captura cada bloco original uma única vez por passada.
+   ========================================================= */
+function beginLiquify(e, pt) {
+  const layer = drawableLayer(); if (!layer) return false;
+  const c = { ...S.tools.liquify };
+  liquify = { layer, cfg: c, pointerId: e.pointerId, x: pt.x, y: pt.y,
+    pressure: pressureOf(e, c), tiles: new Map(), alt: e.altKey, lastMove: performance.now() };
+  buildCache(new Set([layer]));
+  if (c.mode !== 'push') {
+    liquifyDab(pt.x, pt.y, 0, 0, liquify.pressure, e.altKey);
+    liquify.timer = setInterval(() => {
+      const s = liquify;
+      if (s && performance.now() - s.lastMove >= 50) {
+        liquifyDab(s.x, s.y, 0, 0, s.pressure, s.alt); requestRender();
+      }
+    }, 50);
+  }
+  requestRender(); return true;
+}
+function extendLiquify(x, y, p, alt) {
+  const s = liquify, dx = x - s.x, dy = y - s.y, dist = Math.hypot(dx, dy);
+  if (dist < 0.01) { s.pressure = p; s.alt = alt; return; }
+  const count = Math.ceil(dist / Math.max(1, s.cfg.size * 0.1));
+  for (let i = 1; i <= count; i++) {
+    const f = i / count;
+    liquifyDab(s.x + dx * f, s.y + dy * f, dx / count, dy / count, s.pressure + (p - s.pressure) * f, alt);
+  }
+  s.x = x; s.y = y; s.pressure = p; s.alt = alt; s.lastMove = performance.now();
+}
+function liquifyDab(cx, cy, dx, dy, pressure, reverse) {
+  const s = liquify, c = s.cfg, r = c.size / 2;
+  const strength = c.strength * (c.pStrength ? pressure : 1);
+  if (!(strength > 0)) return;
+  let rect = rectClamp({ x: cx - r, y: cy - r, w: 2 * r, h: 2 * r });
+  if (rect && selection) rect = rectClamp(intersect(rect, selection.bbox));
+  if (!rect) return;
+  // A margem de leitura inclui os pixels de origem do deslocamento.
+  const pad = Math.ceil(r * 0.4 + 2);
+  const srcRect = rectClamp({ x: rect.x - pad, y: rect.y - pad, w: rect.w + 2 * pad, h: rect.h + 2 * pad });
+  const ctx = s.layer.ctx, src = ctx.getImageData(srcRect.x, srcRect.y, srcRect.w, srcRect.h);
+  const out = ctx.getImageData(rect.x, rect.y, rect.w, rect.h), dst = out.data;
+  const mask = selection ? selection.mctx.getImageData(rect.x, rect.y, rect.w, rect.h).data : null;
+  let mode = c.mode, sign = reverse ? -1 : 1, changed = false;
+  if (reverse && mode === 'expand') mode = 'pinch'; else if (reverse && mode === 'pinch') mode = 'expand';
+  const mx = dx * strength, my = dy * strength;
+  for (let y = 0; y < rect.h; y++) for (let x = 0; x < rect.w; x++) {
+    const i = (y * rect.w + x) * 4;
+    if (mask && !mask[i + 3]) continue;
+    if (s.layer.alphaLock && !dst[i + 3]) continue;
+    const vx = rect.x + x + 0.5 - cx, vy = rect.y + y + 0.5 - cy;
+    const d2 = (vx * vx + vy * vy) / (r * r); if (d2 >= 1) continue;
+    const falloff = (1 - d2) ** 2;
+    let sx, sy;
+    if (mode === 'push') { sx = vx - mx * falloff; sy = vy - my * falloff; }
+    else if (mode === 'twirl') {
+      const a = -sign * strength * 0.18 * falloff, co = Math.cos(a), si = Math.sin(a);
+      sx = vx * co - vy * si; sy = vx * si + vy * co;
+    } else {
+      const scale = Math.exp((mode === 'expand' ? -1 : 1) * strength * 0.18 * falloff);
+      sx = vx * scale; sy = vy * scale;
+    }
+    sx += cx - 0.5; sy += cy - 0.5;
+    const ix = Math.floor(sx), iy = Math.floor(sy), fx = sx - ix, fy = sy - iy;
+    // Bilinear em cores pré-multiplicadas: bordas transparentes sem halo preto.
+    let a = 0, red = 0, green = 0, blue = 0;
+    for (let yy = 0; yy < 2; yy++) for (let xx = 0; xx < 2; xx++) {
+      const px = ix + xx, py = iy + yy;
+      if (px < 0 || py < 0 || px >= doc.W || py >= doc.H) continue;
+      const j = ((py - srcRect.y) * srcRect.w + px - srcRect.x) * 4;
+      const w = (xx ? fx : 1 - fx) * (yy ? fy : 1 - fy) * src.data[j + 3];
+      a += w; red += src.data[j] * w; green += src.data[j + 1] * w; blue += src.data[j + 2] * w;
+    }
+    // Com a trava, preserva exatamente o alfa; sem cor de origem, preserva o pixel.
+    if (s.layer.alphaLock && a < 0.5) continue;
+    const na = s.layer.alphaLock ? dst[i + 3] : Math.round(a);
+    const nr = na && a ? Math.round(red / a) : 0, ng = na && a ? Math.round(green / a) : 0, nb = na && a ? Math.round(blue / a) : 0;
+    if (dst[i] === nr && dst[i + 1] === ng && dst[i + 2] === nb && dst[i + 3] === na) continue;
+    changed = true;
+    dst[i] = nr; dst[i + 1] = ng; dst[i + 2] = nb; dst[i + 3] = na;
+  }
+  if (changed) {
+    // Captura cada bloco antes da primeira gravação, fora do laço de pixels.
+    for (let ty = Math.floor(rect.y / 128) * 128; ty < rect.y + rect.h; ty += 128) {
+      for (let tx = Math.floor(rect.x / 128) * 128; tx < rect.x + rect.w; tx += 128) {
+        const key = tx + ',' + ty;
+        if (!s.tiles.has(key)) {
+          const b = rectClamp({ x: tx, y: ty, w: 128, h: 128 });
+          s.tiles.set(key, { rect: b, before: ctx.getImageData(b.x, b.y, b.w, b.h) });
+        }
+      }
+    }
+    ctx.putImageData(out, rect.x, rect.y);
+  }
+}
+function endLiquify() {
+  const s = liquify; if (!s) return;
+  clearInterval(s.timer); liquify = null; rcache = null;
+  if (s.tiles.size) {
+    const entries = [...s.tiles.values()].map((b) => pixelEntry(s.layer, b.rect, b.before));
+    pushHistory({ undo() { entries.forEach((e) => e.undo()); }, redo() { entries.forEach((e) => e.redo()); } });
+    updateThumb(s.layer);
+  }
+  requestRender();
+}
+
+/* =========================================================
    Seleção com laço
    ========================================================= */
 let selection = null;   // { mask, mctx, polys:[{pts}], bbox }
 let lasso = null;       // laço sendo desenhado
+const lassoModifiers = { ctrl: false, shift: false };
+function effectiveLassoMode(e) {
+  const subtract = e ? e.ctrlKey || e.metaKey || e.altKey : lassoModifiers.ctrl || altDown;
+  const add = e ? e.shiftKey : lassoModifiers.shift;
+  return subtract ? 'sub' : add ? 'add' : S.lassoMode;
+}
+function syncLassoModes() {
+  const mode = lasso ? lasso.mode : effectiveLassoMode();
+  document.querySelectorAll('[data-lasso-mode]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.lassoMode === mode)));
+}
 function makeSelection() {
   const c = mkCanvas(doc.W, doc.H);
-  return { mask: c, mctx: c.getContext('2d', { willReadFrequently: true }), polys: [], bbox: null };
+  return { mask: c, mctx: c.getContext('2d', { willReadFrequently: true }), polys: [], bbox: null, outline: null, contours: null };
 }
 function computeSelBBox(sel) {
   const keep = selection; selection = sel; refreshSelBBox(); const out = selection; selection = keep; return out;
 }
 function refreshSelBBox() {
   if (!selection) return;
+  selection.outline = null; selection.contours = null;
   let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
   for (const p of selection.polys) if (!p.sub) for (const q of p.pts) {
     if (q.x < x0) x0 = q.x; if (q.y < y0) y0 = q.y; if (q.x > x1) x1 = q.x; if (q.y > y1) y1 = q.y;
@@ -1788,6 +2006,7 @@ function toNewLayers(cut) {
   toast((cut ? t('Recortado') : t('Copiado')) + t(' para ') + pieces.length + (pieces.length === 1 ? t(' camada nova.') : t(' camadas novas.')));
 }
 function fillSelection() {
+  if (stroke || liquify || lasso) return;
   if (!selection) { toast('Faça uma seleção primeiro.'); return; }
   const l = drawableLayer(); if (!l) return;
   const r = selection.bbox, tmp = mkCanvas(r.w, r.h), x = tmp.getContext('2d');
@@ -1885,7 +2104,7 @@ function drawPiece(ctx, piece, pad) {
 
 function startTransform() {
   if (tf) { applyTransform(); return; }
-  if (stroke) return;
+  if (stroke || liquify) return;
   const ls = targetLayers().filter(effVisible);
   if (!ls.length) { toast('Selecione uma camada visível para transformar.'); return; }
   const src = selRect();
@@ -2170,7 +2389,7 @@ function placeBar(bar, pts) {
 }
 function updateFloatBars() {
   const sb = $('#selBar'), tb = $('#tfBar');
-  const showSel = !!selection && !tf && !lasso && !stroke && !rdrag && !zdrag;
+  const showSel = !!selection && !tf && !lasso && !stroke && !liquify && !rdrag && !zdrag;
   sb.hidden = !showSel;
   if (showSel) { const b = selection.bbox; placeBar(sb, [{ x: b.x, y: b.y }, { x: b.x + b.w, y: b.y }, { x: b.x + b.w, y: b.y + b.h }, { x: b.x, y: b.y + b.h }].map(docToScreen)); }
   tb.hidden = !tf || !!(tf && tf.drag);
@@ -2270,7 +2489,7 @@ function currentToolForCursor() {
 function updateCursor() {
   const t = currentToolForCursor();
   stage.className = t === 'pan' ? (panning ? 'c-grabbing' : 'c-grab') : t === 'zoom' ? 'c-zoom' : t === 'rotate' ? 'c-rot'
-    : (t === 'brush' || t === 'eraser') ? 'c-none' : t === 'tf' ? '' : t === 'lasso' ? 'c-lasso' : 'c-cross';
+    : (t === 'brush' || t === 'eraser' || t === 'liquify') ? 'c-none' : t === 'tf' ? '' : t === 'lasso' ? 'c-lasso' : 'c-cross';
   if (t !== 'tf') view.style.cursor = '';
   requestRender();
 }
@@ -2281,7 +2500,7 @@ function showPen(e) {
 }
 
 view.addEventListener('pointerdown', (e) => {
-  if (stroke || panning || lasso || zdrag || rdrag || (tf && tf.drag)) return;
+  if (stroke || liquify || panning || lasso || zdrag || rdrag || (tf && tf.drag)) return;
   if (!$('#opts').hidden) toggleOpts(false);
   try { view.setPointerCapture(e.pointerId); } catch (err) { /* ponteiro já liberado */ }
   const pt = toDoc(e);
@@ -2312,9 +2531,11 @@ view.addEventListener('pointerdown', (e) => {
   }
   if (e.button !== 0 && !penEraser) return;
   if (S.tool === 'lasso' && !penEraser) {
-    lasso = { id: e.pointerId, pts: [{ x: pt.x, y: pt.y }], mode: e.shiftKey ? 'add' : e.altKey ? 'sub' : 'replace' };
+    lasso = { id: e.pointerId, pts: [{ x: pt.x, y: pt.y }], mode: effectiveLassoMode(e) };
+    syncLassoModes();
     return;
   }
+  if (S.tool === 'liquify' && !penEraser) { beginLiquify(e, pt); return; }
   if (S.tool === 'fill' && !penEraser) { floodFill(pt.x, pt.y); return; }
   if (S.tool === 'brush' || S.tool === 'eraser' || penEraser) beginStroke(e, pt, penEraser || S.tool === 'eraser');
 });
@@ -2352,6 +2573,10 @@ view.addEventListener('pointermove', (e) => {
     }
     requestRender(); return;
   }
+  if (liquify && e.pointerId === liquify.pointerId) {
+    extendLiquify(pt.x, pt.y, pressureOf(e, liquify.cfg), e.altKey);
+    showPen(e); requestRender(); return;
+  }
   if (stroke && e.pointerId === stroke.pointerId) {
     const evs = (e.getCoalescedEvents && e.getCoalescedEvents()) || [];
     for (const ce of (evs.length ? evs : [e])) {
@@ -2377,13 +2602,19 @@ function pointerEnd(e) {
     const xs = L.pts.map((p) => p.x), ys = L.pts.map((p) => p.y);
     const big = L.pts.length > 2 && (Math.max(...xs) - Math.min(...xs)) * S.zoom > 3 && (Math.max(...ys) - Math.min(...ys)) * S.zoom > 3;
     if (big) applyLasso(L.pts, L.mode); else if (L.mode === 'replace') deselect();
+    syncLassoModes();
     requestRender();
+  }
+  if (liquify && e.pointerId === liquify.pointerId) {
+    if (e.type === 'pointerup') { const p = toDoc(e); extendLiquify(p.x, p.y, liquify.pressure, e.altKey); }
+    endLiquify();
   }
   if (stroke && e.pointerId === stroke.pointerId) endStroke();
 }
+view.addEventListener('lostpointercapture', pointerEnd);
 view.addEventListener('pointerup', pointerEnd);
 view.addEventListener('pointercancel', pointerEnd);
-view.addEventListener('pointerleave', () => { if (!stroke && !panning && !lasso) { hover.inside = false; requestRender(); } });
+view.addEventListener('pointerleave', () => { if (!stroke && !liquify && !panning && !lasso) { hover.inside = false; requestRender(); } });
 view.addEventListener('contextmenu', (e) => e.preventDefault());
 view.addEventListener('wheel', (e) => {
   e.preventDefault();
@@ -2395,12 +2626,13 @@ view.addEventListener('wheel', (e) => {
    Ferramentas e opções
    ========================================================= */
 function setTool(t) {
+  if (liquify) endLiquify();
   if (tf) applyTransform();
   S.tool = t;
   document.querySelectorAll('.tool').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.tool === t)));
   syncOptions(); setOptsMode(); updateCursor(); saveSettingsSoon();
 }
-const OPTS_TITLES = { brush: 'Ajustes do pincel', eraser: 'Ajustes da borracha', fill: 'Ajustes do balde', lasso: 'Laço', picker: 'Conta-gotas', pan: 'Mão', transform: 'Transformar' };
+const OPTS_TITLES = { liquify: 'Ajustes do liquify', brush: 'Ajustes do pincel', eraser: 'Ajustes da borracha', fill: 'Ajustes do balde', lasso: 'Laço', picker: 'Conta-gotas', pan: 'Mão', transform: 'Transformar' };
 function toggleOpts(force) {
   const o = $('#opts'), show = force === undefined ? o.hidden : force;
   o.hidden = !show; $('#btnOpts').setAttribute('aria-expanded', String(show));
@@ -2425,25 +2657,33 @@ function updateTfHint() {
 }
 function setOptsMode() {
   updateTfHint();
+  syncLassoModes();
   const mode = tf ? 'transform' : S.tool;
   document.querySelectorAll('.opt[data-for]').forEach((o) => { o.hidden = !o.dataset.for.split(' ').includes(mode); });
   $('#optsTitle').textContent = t(OPTS_TITLES[mode] || 'Ajustes');
 }
 document.querySelectorAll('.tool').forEach((b) => b.addEventListener('click', () => setTool(b.dataset.tool)));
+document.querySelectorAll('[data-lasso-mode]').forEach((b) => b.addEventListener('click', () => {
+  S.lassoMode = b.dataset.lassoMode; syncLassoModes(); requestRender(); saveSettingsSoon();
+}));
 
 const SIZE_MAX = 500;
-const sliderToSize = (v) => Math.max(1, Math.round(Math.pow(SIZE_MAX, v / 1000)));
-const sizeToSlider = (s) => Math.round((Math.log(Math.max(1, s)) / Math.log(SIZE_MAX)) * 1000);
-// ferramenta que recebe os ajustes de tamanho (pincel ou borracha)
-function sizeCfg() { return S.tool === 'eraser' ? S.tools.eraser : S.tools.brush; }
+const minimumSize = () => S.tool === 'liquify' ? 1 : 0.1;
+const sliderToSize = (v) => Math.round(minimumSize() * Math.pow(SIZE_MAX / minimumSize(), v / 1000) * 10) / 10;
+const sizeToSlider = (s) => Math.round(Math.log(clamp(s, minimumSize(), SIZE_MAX) / minimumSize()) / Math.log(SIZE_MAX / minimumSize()) * 1000);
+// Cada pincel recebe seus próprios ajustes de tamanho.
+function sizeCfg() { return S.tool === 'liquify' ? S.tools.liquify : S.tool === 'eraser' ? S.tools.eraser : S.tools.brush; }
 function setSize(s) {
   const c = sizeCfg();
-  c.size = clamp(Math.round(s), 1, SIZE_MAX);
+  c.size = clamp(Math.round(s * 10) / 10, minimumSize(), SIZE_MAX);
   $('#optSize').value = sizeToSlider(c.size); $('#optSizeNum').value = c.size;
   updateDockDot(); requestRender(); saveSettingsSoon();
 }
 $('#optSize').addEventListener('input', (e) => { const c = sizeCfg(); c.size = sliderToSize(+e.target.value); $('#optSizeNum').value = c.size; updateDockDot(); requestRender(); saveSettingsSoon(); });
-$('#optSizeNum').addEventListener('change', (e) => setSize(+e.target.value || 1));
+$('#optSizeNum').addEventListener('change', (e) => setSize(e.target.value !== '' && Number.isFinite(+e.target.value) ? +e.target.value : sizeCfg().size));
+$('#optLiquifyMode').addEventListener('change', (e) => { S.tools.liquify.mode = e.target.value; saveSettingsSoon(); });
+$('#optLiquifyStrength').addEventListener('input', (e) => { S.tools.liquify.strength = e.target.value / 100; $('#optLiquifyStrengthVal').textContent = e.target.value + '%'; saveSettingsSoon(); });
+$('#optLiquifyPressure').addEventListener('change', (e) => { S.tools.liquify.pStrength = e.target.checked; saveSettingsSoon(); });
 $('#optOpacity').addEventListener('input', (e) => { cfg().opacity = e.target.value / 100; $('#optOpacityVal').textContent = e.target.value + '%'; saveSettingsSoon(); });
 $('#optCurve').addEventListener('input', (e) => { sizeCfg().curve = e.target.value / 100; $('#optCurveVal').textContent = sizeCfg().curve.toFixed(2); saveSettingsSoon(); });
 $('#optSmooth').addEventListener('input', (e) => { sizeCfg().smoothing = e.target.value / 100; $('#optSmoothVal').textContent = e.target.value + '%'; saveSettingsSoon(); });
@@ -2459,7 +2699,14 @@ $('#tfCancel').addEventListener('click', cancelTransform);
 $('#tfFlipH').addEventListener('click', () => { if (tf) tfFlip(true); });
 $('#tfFlipV').addEventListener('click', () => { if (tf) tfFlip(false); });
 function syncOptions() {
-  const c = sizeCfg(), o = cfg().opacity;
+  const q = S.tools.liquify;
+  $('#optLiquifyMode').value = q.mode;
+  $('#optLiquifyStrength').value = Math.round(q.strength * 100);
+  $('#optLiquifyStrengthVal').textContent = Math.round(q.strength * 100) + '%';
+  $('#optLiquifyPressure').checked = q.pStrength;
+  const c = sizeCfg(), o = cfg().opacity ?? 1;
+  $('#optSizeNum').min = minimumSize();
+  $('#optSizeNum').step = S.tool === 'liquify' ? 1 : 0.1;
   $('#optSize').value = sizeToSlider(c.size); $('#optSizeNum').value = c.size;
   $('#optOpacity').value = Math.round(o * 100); $('#optOpacityVal').textContent = Math.round(o * 100) + '%';
   $('#optCurve').value = Math.round(c.curve * 100); $('#optCurveVal').textContent = c.curve.toFixed(2);
@@ -2702,7 +2949,7 @@ async function writeOut(bytes, suggested, kind, reusePath) {
   return { path: null, name: suggested };
 }
 async function save(asNew) {
-  if (stroke) return;
+  if (stroke || liquify) return;
   if (tf) applyTransform();
   try {
     const bytes = await buildOra();
@@ -2824,6 +3071,7 @@ $('#mNew').addEventListener('keydown', (e) => { if (e.key === 'Enter') $('#newCr
 const ACTIONS = [
   ['tool.brush', 'Ferramentas', 'Pincel', 'B'],
   ['tool.eraser', 'Ferramentas', 'Borracha', 'E'],
+  ['tool.liquify', 'Ferramentas', 'Liquify', 'J'],
   ['tool.lasso', 'Ferramentas', 'Laço', 'L'],
   ['tool.fill', 'Ferramentas', 'Balde', 'G'],
   ['tool.picker', 'Ferramentas', 'Conta-gotas', 'I'],
@@ -2850,11 +3098,13 @@ const ACTIONS = [
   ['sel.clearOutside', 'Editar', 'Apagar fora da seleção', ''],
   ['sel.cutNew', 'Editar', 'Recortar para camada nova', 'Ctrl+Shift+J'],
   ['sel.copyNew', 'Editar', 'Copiar para camada nova', ''],
-  ['sel.fill', 'Editar', 'Preencher a seleção com a cor', 'Alt+Backspace'],
+  ['sel.fill', 'Editar', 'Preencher a seleção com a cor', 'F'],
+  ['sel.fillAlt', 'Editar', 'Preencher a seleção (alternativo)', 'Alt+Backspace'],
   ['edit.cut', 'Editar', 'Recortar', 'Ctrl+X'],
   ['edit.copy', 'Editar', 'Copiar', 'Ctrl+C'],
   ['edit.paste', 'Editar', 'Colar', 'Ctrl+V'],
-  ['edit.clear', 'Editar', 'Apagar a seleção (ou a camada)', 'Delete'],
+  ['edit.clear', 'Editar', 'Apagar conteúdo da seleção ou da camada', 'Backspace'],
+  ['edit.clearAlt', 'Editar', 'Apagar conteúdo (alternativo)', 'Delete'],
   ['layer.new', 'Camadas', 'Nova camada', 'Ctrl+Shift+N'],
   ['layer.dup', 'Camadas', 'Duplicar', 'Ctrl+J'],
   ['layer.merge', 'Camadas', 'Mesclar', 'Ctrl+E'],
@@ -2877,10 +3127,11 @@ const ACTIONS = [
 const ACTION = Object.fromEntries(ACTIONS.map(([id, group, label, def, kind]) => [id, { id, group, label, def, kind }]));
 const REPEATABLE = new Set(['brush.smaller', 'brush.bigger', 'view.zoomIn', 'view.zoomOut', 'edit.undo', 'edit.redo', 'layer.selUp', 'layer.selDown']);
 const RUN = {
+  'tool.liquify': () => setTool('liquify'),
   'tool.brush': () => setTool('brush'), 'tool.eraser': () => setTool('eraser'), 'tool.lasso': () => setTool('lasso'),
   'tool.fill': () => setTool('fill'), 'tool.picker': () => setTool('picker'), 'tool.pan': () => setTool('pan'),
-  'brush.smaller': () => { const z = sizeCfg().size; setSize(z <= 10 ? z - 1 : z / 1.15); },
-  'brush.bigger': () => { const z = sizeCfg().size; setSize(z < 10 ? z + 1 : z * 1.15); },
+  'brush.smaller': () => { const z = sizeCfg().size; setSize(z <= 1 ? z - 0.1 : z <= 10 ? Math.max(1, z - 1) : z / 1.15); },
+  'brush.bigger': () => { const z = sizeCfg().size; setSize(z < 1 ? z + 0.1 : z < 10 ? z + 1 : z * 1.15); },
   'color.swap': swapColors,
   'color.reset': () => { S.color = '#1f2430'; S.color2 = '#ffffff'; updateSwatches(); saveSettingsSoon(); },
   'view.mirror': toggleMirror, 'view.resetRot': resetRotation, 'view.fit': () => fitView(true), 'view.actual': actualSize,
@@ -2888,8 +3139,9 @@ const RUN = {
   'edit.undo': undo, 'edit.redo': redo, 'edit.transform': startTransform,
   'sel.all': selectAll, 'sel.none': deselect, 'sel.invert': invertSelection, 'sel.clearOutside': clearOutside,
   'sel.cutNew': () => toNewLayers(true), 'sel.copyNew': () => toNewLayers(false), 'sel.fill': fillSelection,
+  'sel.fillAlt': fillSelection,
   'edit.cut': () => copySelected(true), 'edit.copy': () => copySelected(false), 'edit.paste': pasteInternal,
-  'edit.clear': clearSelected,
+  'edit.clear': clearSelected, 'edit.clearAlt': clearSelected,
   'layer.new': addLayer, 'layer.dup': duplicateSelected, 'layer.merge': mergeSelected,
   'layer.group': groupSelected, 'layer.ungroup': ungroupSelected, 'layer.delete': deleteSelected, 'layer.lock': toggleAlphaLock, 'layer.clip': toggleClip,
   'layer.up': () => moveActiveStep(1), 'layer.down': () => moveActiveStep(-1),
@@ -2903,8 +3155,15 @@ const TF_SAFE = new Set(['view.mirror', 'view.resetRot', 'view.fit', 'view.actua
 let KEYS = {};
 function loadKeys() {
   const saved = load('doodle.keys') || {};
+  // Atualiza somente o antigo padrão; mantém atalhos personalizados.
+  if (saved['sel.fill'] === 'Alt+Backspace' && !Object.entries(saved).some(([id, key]) => id !== 'sel.fill' && key === 'F')) saved['sel.fill'] = 'F';
+  if (saved['edit.clear'] === 'Delete' && !Object.entries(saved).some(([id, key]) => id !== 'edit.clear' && key === 'Backspace')) saved['edit.clear'] = 'Backspace';
   KEYS = {};
-  for (const a of ACTIONS) KEYS[a[0]] = Object.prototype.hasOwnProperty.call(saved, a[0]) ? saved[a[0]] : a[3];
+  for (const a of ACTIONS) {
+    const custom = Object.prototype.hasOwnProperty.call(saved, a[0]);
+    const defaultTaken = Object.entries(saved).some(([id, key]) => id !== a[0] && key === a[3]);
+    KEYS[a[0]] = custom ? saved[a[0]] : defaultTaken ? '' : a[3];
+  }
 }
 function saveKeys() { store('doodle.keys', KEYS); }
 function keyName(e) {
@@ -2939,7 +3198,8 @@ function updateKeyHints() {
     if (el.dataset) { el.dataset.i18nTitle = el.title; }
     const kb = el.querySelector('kbd'); if (kb) kb.textContent = k && k.length <= 2 ? k : '';
   });
-  $('#hintLasso').innerHTML = t('Contorne a área. <b>Shift</b> soma, <b>Alt</b> tira. ') +
+  $('#hintLasso').innerHTML = t('Contorne a área. <b>Shift</b> soma, <b>Ctrl</b> subtrai. ') +
+    (KEYS['sel.fill'] ? '<b>' + prettyKey(KEYS['sel.fill']) + t('</b> preenche com a cor principal, ') : '') +
     (KEYS['edit.transform'] ? '<b>' + prettyKey(KEYS['edit.transform']) + t('</b> transforma, ') : '') +
     (KEYS['edit.cut'] ? '<b>' + prettyKey(KEYS['edit.cut']) + t('</b> recorta, ') : '') +
     (KEYS['sel.none'] ? '<b>' + prettyKey(KEYS['sel.none']) + t('</b> tira a seleção. ') : '') +
@@ -2950,7 +3210,7 @@ function updateKeyHints() {
 }
 
 let listening = null;
-function showKeys() { renderKeyList(); showModal('#mKeys'); }
+function showKeys() { closeSettingsMenu(); renderKeyList(); showModal('#mKeys'); }
 function renderKeyList() {
   const box = $('#keyList'); box.innerHTML = '';
   let group = null, sec = null;
@@ -2990,23 +3250,27 @@ function isTyping(e) {
   return t && ((t.tagName === 'INPUT' && !['range', 'checkbox', 'radio', 'color'].includes(t.type)) || t.isContentEditable);
 }
 function runAction(id) {
+  if (liquify) endLiquify();
   if (tf && !TF_SAFE.has(id)) applyTransform();
   const f = RUN[id]; if (f) f();
 }
 window.addEventListener('keydown', (e) => {
+  lassoModifiers.ctrl = e.ctrlKey || e.metaKey; lassoModifiers.shift = e.shiftKey;
+  syncLassoModes(); requestRender();
   if (listening) { captureKey(e); return; }
   if (e.key === 'Escape') {
     if (!ctxMenu.hidden) { closeMenu(); return; }
+    if (!settingsMenu.hidden) { closeSettingsMenu(true); return; }
     if (!fileMenu.hidden) { fileMenu.hidden = true; return; }
     if (!$('#opts').hidden) { toggleOpts(false); return; }
     if (openModal) { if (openModal.id === 'mConfirm') $('#confirmNo').click(); else closeModal(); }
     else if (tf) cancelTransform();
-    else if (lasso) { lasso = null; requestRender(); }
+    else if (lasso) { lasso = null; syncLassoModes(); requestRender(); }
     return;
   }
   if (openModal || isTyping(e)) return;
   if (tf && e.key === 'Enter') { e.preventDefault(); applyTransform(); return; }
-  if (e.key === 'Alt') { e.preventDefault(); altDown = true; updateCursor(); return; }
+  if (e.key === 'Alt') { e.preventDefault(); altDown = true; syncLassoModes(); if (liquify) liquify.alt = true; updateCursor(); return; }
   const combo = comboOf(e); if (!combo) return;
   const hold = holdFor(combo);
   if (hold) {
@@ -3022,12 +3286,14 @@ window.addEventListener('keydown', (e) => {
   runAction(id);
 });
 window.addEventListener('keyup', (e) => {
+  lassoModifiers.ctrl = e.ctrlKey || e.metaKey; lassoModifiers.shift = e.shiftKey;
   if (holdKeyMatches('hold.pan', e)) { e.preventDefault(); holds.pan = false; updateCursor(); }
   if (holdKeyMatches('hold.zoom', e)) { holds.zoom = false; updateCursor(); }
   if (holdKeyMatches('hold.rotate', e)) { holds.rotate = false; updateCursor(); }
-  if (e.key === 'Alt') { e.preventDefault(); altDown = false; updateCursor(); }
+  if (e.key === 'Alt') { e.preventDefault(); altDown = false; if (liquify) liquify.alt = false; updateCursor(); }
+  syncLassoModes(); requestRender();
 });
-window.addEventListener('blur', () => { holds.pan = holds.zoom = holds.rotate = false; altDown = false; updateCursor(); });
+window.addEventListener('blur', () => { if (liquify) endLiquify(); holds.pan = holds.zoom = holds.rotate = false; altDown = false; lassoModifiers.ctrl = lassoModifiers.shift = false; syncLassoModes(); updateCursor(); });
 
 document.querySelectorAll('[data-act]').forEach((el) => {
   if (el.classList.contains('tool')) return;
@@ -3048,7 +3314,7 @@ function setLang(l) {
   if (openModal && openModal.id === 'mKeys') renderKeyList();
   saveSettingsSoon();
 }
-document.querySelectorAll('[data-lang]').forEach((b) => b.addEventListener('click', () => { fileMenu.hidden = true; setLang(b.dataset.lang); }));
+document.querySelectorAll('[data-lang]').forEach((b) => b.addEventListener('click', () => { setLang(b.dataset.lang); closeSettingsMenu(true); }));
 /* ---- atualizações (só no app instalado) ---- */
 let pendingUpdate = null;
 function showUpdate(upd) {
@@ -3093,9 +3359,10 @@ async function installUpdate() {
 }
 $('#updNow').addEventListener('click', installUpdate);
 $('#updLater').addEventListener('click', () => { $('#updBanner').hidden = true; });
-$('#btnUpdates').addEventListener('click', () => { fileMenu.hidden = true; checkUpdates(true); });
+$('#btnUpdates').addEventListener('click', () => { closeSettingsMenu(true); checkUpdates(true); });
+$('#btnUpdates').disabled = !(TAURI && TAURI.updater);
+$('#updatesBrowserHint').hidden = !!(TAURI && TAURI.updater);
 if (TAURI) {
-  document.querySelectorAll('[data-app-only]').forEach((el) => { el.hidden = false; });
   if (TAURI.app) TAURI.app.getVersion().then((v) => { $('#appVersion').textContent = 'v' + v; }).catch(() => {});
   // procura sozinho, no máximo uma vez por dia, alguns segundos depois de abrir
   let last = 0; try { last = +localStorage.getItem('doodle.lastUpdateCheck') || 0; } catch (e) { /* ok */ }
@@ -3111,7 +3378,48 @@ $('#btnPin').addEventListener('click', () => { S.layersPinned = !S.layersPinned;
 $('#btnOpts').addEventListener('click', () => toggleOpts());
 /* menu do arquivo */
 const fileMenu = $('#fileMenu');
+const settingsMenu = $('#settingsMenu'), settingsBtn = $('#btnSettings');
+function closeSettingsMenu(restoreFocus = false) {
+  settingsMenu.hidden = true; settingsBtn.setAttribute('aria-expanded', 'false');
+  if (restoreFocus) settingsBtn.focus();
+}
+function openSettingsMenu() {
+  fileMenu.hidden = true; closeMenu(); toggleOpts(false);
+  settingsMenu.querySelectorAll('[data-act]').forEach((b) => {
+    const k = KEYS[b.dataset.act], badge = b.querySelector('.kb');
+    if (badge) badge.textContent = k ? prettyKey(k) : '';
+  });
+  settingsMenu.hidden = false; settingsBtn.setAttribute('aria-expanded', 'true');
+  const r = settingsBtn.getBoundingClientRect();
+  settingsMenu.style.left = clamp(r.right - settingsMenu.offsetWidth, 8, innerWidth - settingsMenu.offsetWidth - 8) + 'px';
+  settingsMenu.style.top = (r.bottom + 4) + 'px';
+  settingsMenu.querySelector('button:not(:disabled)').focus();
+}
+settingsBtn.addEventListener('click', () => { if (settingsMenu.hidden) openSettingsMenu(); else closeSettingsMenu(true); });
+settingsBtn.addEventListener('keydown', (e) => {
+  if (e.key === ' ') { e.preventDefault(); e.stopPropagation(); settingsBtn.click(); return; }
+  if (e.key === 'Enter') { e.stopPropagation(); return; }
+  if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return;
+  e.preventDefault(); e.stopPropagation(); openSettingsMenu();
+  if (e.key === 'ArrowUp') [...settingsMenu.querySelectorAll('button:not(:disabled)')].at(-1).focus();
+});
+settingsMenu.addEventListener('keydown', (e) => {
+  const items = [...settingsMenu.querySelectorAll('button:not(:disabled)')];
+  const i = items.indexOf(document.activeElement);
+  if (e.key === ' ') { e.preventDefault(); e.stopPropagation(); if (i >= 0) items[i].click(); }
+  else if (['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(e.key)) {
+    e.preventDefault(); e.stopPropagation();
+    const next = e.key === 'Home' ? 0 : e.key === 'End' ? items.length - 1 : (i + (e.key === 'ArrowDown' ? 1 : -1) + items.length) % items.length;
+    items[next].focus();
+  } else if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); closeSettingsMenu(true); }
+  else if (!e.ctrlKey && !e.metaKey) e.stopPropagation();
+});
+settingsMenu.addEventListener('focusout', (e) => {
+  if (e.relatedTarget && !settingsMenu.contains(e.relatedTarget) && e.relatedTarget !== settingsBtn) closeSettingsMenu();
+});
+window.addEventListener('resize', () => closeSettingsMenu());
 $('#fileBtn').addEventListener('click', (e) => {
+  closeSettingsMenu();
   if (!fileMenu.hidden) { fileMenu.hidden = true; return; }
   const r = e.currentTarget.getBoundingClientRect();
   fileMenu.hidden = false; fileMenu.style.left = r.left + 'px'; fileMenu.style.top = (r.bottom + 4) + 'px';
@@ -3119,6 +3427,7 @@ $('#fileBtn').addEventListener('click', (e) => {
 });
 fileMenu.addEventListener('click', (e) => { if (e.target.closest('[data-act]')) fileMenu.hidden = true; });
 window.addEventListener('pointerdown', (e) => {
+  if (!settingsMenu.hidden && !settingsMenu.contains(e.target) && !settingsBtn.contains(e.target)) closeSettingsMenu();
   if (!fileMenu.hidden && !fileMenu.contains(e.target) && !$('#fileBtn').contains(e.target)) fileMenu.hidden = true;
   const o = $('#opts');
   if (!o.hidden && !o.contains(e.target) && !$('#btnOpts').contains(e.target)) toggleOpts(false);
@@ -3156,7 +3465,7 @@ syncOptions();
 updateSwatches();
 newDocument(1920, 1080, 'white');
 setLang(LANG);
-setTool(['brush', 'eraser', 'lasso', 'fill'].includes(S.tool) ? S.tool : 'brush');
+setTool(['brush', 'eraser', 'liquify', 'lasso', 'fill'].includes(S.tool) ? S.tool : 'brush');
 
 /* No app instalado: abrir o .ora que recebeu dois cliques */
 if (TAURI && TAURI.core) {
