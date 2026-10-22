@@ -318,6 +318,14 @@ input[type=color].hidden-color { position: absolute; width: 0; height: 0; opacit
   background: var(--fg); color: var(--panel); padding: 9px 14px; border-radius: 8px; font-size: 13px; opacity: 0;
   pointer-events: none; transition: opacity .18s, transform .18s; z-index: 60; max-width: min(520px, calc(100% - 32px)); text-align: center;
 }
+.update-banner {
+  position: fixed; left: 50%; top: calc(48px + env(safe-area-inset-top, 0px)); transform: translateX(-50%); z-index: 45;
+  display: flex; align-items: center; gap: 12px; padding: 8px 8px 8px 14px; border-radius: 12px; max-width: calc(100% - 24px);
+  background: var(--raise); border: 1px solid var(--line); box-shadow: var(--shadow); color: var(--fg);
+}
+.update-banner svg { color: var(--accent); }
+.update-banner .pbtn { height: 30px; padding: 0 12px; }
+.update-banner .pbtn:disabled { opacity: .5; }
 #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
 
 @media (max-width: 760px) {
@@ -354,6 +362,8 @@ input[type=color].hidden-color { position: absolute; width: 0; height: 0; opacit
     <button class="ctx-item" role="menuitem" data-act="file.export"><span class="ic"><svg class="i s"><use href="#i-export"/></svg></span>Exportar PNG<span class="kb"></span></button>
     <div class="ctx-sep"></div>
     <div class="info" id="stSize"></div>
+    <div class="ctx-sep" data-app-only hidden></div>
+    <button class="ctx-item" role="menuitem" id="btnUpdates" data-app-only hidden><span class="ic"><svg class="i s"><use href="#i-download"/></svg></span>Procurar atualizações<span class="kb" id="appVersion"></span></button>
     <div class="ctx-sep"></div>
     <div class="info">Idioma</div>
     <button class="ctx-item" role="menuitemradio" data-lang="pt"><span class="ck"></span>Português (Brasil)</button>
@@ -529,6 +539,13 @@ input[type=color].hidden-color { position: absolute; width: 0; height: 0; opacit
 
 <div id="toast" role="status" aria-live="polite"></div>
 
+<div class="update-banner" id="updBanner" role="status" aria-live="polite" hidden>
+  <svg class="i"><use href="#i-download"/></svg>
+  <span id="updText"></span>
+  <button class="pbtn" id="updLater">Depois</button>
+  <button class="pbtn primary" id="updNow">Atualizar agora</button>
+</div>
+
 <svg width="0" height="0" style="position:absolute" aria-hidden="true">
   <symbol id="i-brush" viewBox="0 0 24 24"><path d="M14.5 4.5l5 5L10 19l-5.5 1 1-5.5z"/><path d="M12.5 6.5l5 5"/></symbol>
   <symbol id="i-eraser" viewBox="0 0 24 24"><path d="M9 20h11"/><path d="M4.7 14.3l9.6-9.6a1.4 1.4 0 012 0l3 3a1.4 1.4 0 010 2L11 18.1a2 2 0 01-1.4.6H8.2a2 2 0 01-1.4-.6l-2.1-2.1a1.2 1.2 0 010-1.7z"/><path d="M9.5 9.5l5 5"/></symbol>
@@ -564,6 +581,7 @@ input[type=color].hidden-color { position: absolute; width: 0; height: 0; opacit
   <symbol id="i-lock" viewBox="0 0 24 24"><rect x="5" y="10.5" width="14" height="10" rx="2"/><path d="M8 10.5V8a4 4 0 018 0v2.5"/><circle cx="12" cy="15.5" r="1.2" fill="currentColor"/></symbol>
   <symbol id="i-unlock" viewBox="0 0 24 24"><rect x="5" y="10.5" width="14" height="10" rx="2"/><path d="M8 10.5V8a4 4 0 017.6-1.7"/></symbol>
   <symbol id="i-clip" viewBox="0 0 24 24"><path d="M7 4v9a4 4 0 004 4h8"/><path d="M15 13l4 4-4 4"/></symbol>
+  <symbol id="i-download" viewBox="0 0 24 24"><path d="M12 4v11"/><path d="M7.5 10.5L12 15l4.5-4.5"/><path d="M5 19.5h14"/></symbol>
   <symbol id="i-compass" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 6.5l2.2 5.5L12 17.5 9.8 12z"/></symbol>
   <symbol id="i-chev" viewBox="0 0 24 24"><path d="M7 10l5 5 5-5"/></symbol>
   <symbol id="i-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></symbol>
@@ -678,6 +696,13 @@ const EN = {
   'Arraste para mover. Roda do mouse aproxima. ': 'Drag to pan. The mouse wheel zooms. ', 'Segure <b>': 'Hold <b>',
   '</b> e arraste para os lados para o zoom. ': '</b> and drag sideways to zoom. ', '</b> e arraste para girar a tela.': '</b> and drag to rotate the canvas.',
   'Mão': 'Hand', 'Laço ': 'Lasso ',
+  'Procurar atualizações': 'Check for updates', 'Depois': 'Later', 'Atualizar agora': 'Update now',
+  'Doodle {0} está disponível.': 'Doodle {0} is available.', 'Procurando atualizações…': 'Checking for updates…',
+  'Você já está com a versão mais nova.': 'You already have the latest version.',
+  'Não consegui procurar atualizações. Confira a internet e tente de novo.': 'Could not check for updates. Check your internet connection and try again.',
+  'Atualizar sem salvar?': 'Update without saving?', 'O app vai fechar e abrir de novo. As alterações não salvas deste desenho serão perdidas.': 'The app will close and reopen. Unsaved changes to this drawing will be lost.',
+  'Atualizar mesmo assim': 'Update anyway', 'Baixando a atualização…': 'Downloading the update…', 'Instalando…': 'Installing…',
+  'A atualização falhou. Tente de novo mais tarde.': 'The update failed. Try again later.',
   // cores
   'Preto marfim': 'Ivory black', 'Branco titânio': 'Titanium white', 'Azul ultramar': 'Ultramarine blue', 'Verde viridiana': 'Viridian green',
   'Vermelho cádmio': 'Cadmium red', 'Ocre amarelo': 'Yellow ochre', 'Siena queimada': 'Burnt sienna', 'Violeta de cobalto': 'Cobalt violet',
@@ -3017,6 +3042,58 @@ function setLang(l) {
   saveSettingsSoon();
 }
 document.querySelectorAll('[data-lang]').forEach((b) => b.addEventListener('click', () => { fileMenu.hidden = true; setLang(b.dataset.lang); }));
+/* ---- atualizações (só no app instalado) ---- */
+let pendingUpdate = null;
+function showUpdate(upd) {
+  pendingUpdate = upd;
+  $('#updText').textContent = t('Doodle {0} está disponível.').replace('{0}', upd.version);
+  $('#updNow').disabled = false; $('#updLater').disabled = false;
+  $('#updBanner').hidden = false;
+}
+async function checkUpdates(manual) {
+  if (!TAURI || !TAURI.updater) return;
+  try {
+    if (manual) toast(t('Procurando atualizações…'));
+    const upd = await TAURI.updater.check();
+    if (upd) showUpdate(upd);
+    else if (manual) toast(t('Você já está com a versão mais nova.'));
+    try { localStorage.setItem('doodle.lastUpdateCheck', String(Date.now())); } catch (e) { /* ok */ }
+  } catch (e) {
+    console.warn(e);
+    if (manual) toast(t('Não consegui procurar atualizações. Confira a internet e tente de novo.'), 4500);
+  }
+}
+async function installUpdate() {
+  const upd = pendingUpdate; if (!upd) return;
+  if (S.dirty && !(await confirmBox(t('Atualizar sem salvar?'), t('O app vai fechar e abrir de novo. As alterações não salvas deste desenho serão perdidas.'), t('Atualizar mesmo assim')))) return;
+  $('#updNow').disabled = true; $('#updLater').disabled = true;
+  let total = 0, got = 0;
+  try {
+    await upd.downloadAndInstall((ev) => {
+      if (ev.event === 'Started') total = ev.data.contentLength || 0;
+      else if (ev.event === 'Progress') {
+        got += ev.data.chunkLength || 0;
+        $('#updText').textContent = t('Baixando a atualização…') + (total ? ' ' + Math.round(got / total * 100) + '%' : '');
+      } else if (ev.event === 'Finished') $('#updText').textContent = t('Instalando…');
+    });
+    S.dirty = false;
+    if (TAURI.process) await TAURI.process.relaunch();
+  } catch (e) {
+    console.warn(e);
+    $('#updText').textContent = t('A atualização falhou. Tente de novo mais tarde.');
+    $('#updLater').disabled = false;
+  }
+}
+$('#updNow').addEventListener('click', installUpdate);
+$('#updLater').addEventListener('click', () => { $('#updBanner').hidden = true; });
+$('#btnUpdates').addEventListener('click', () => { fileMenu.hidden = true; checkUpdates(true); });
+if (TAURI) {
+  document.querySelectorAll('[data-app-only]').forEach((el) => { el.hidden = false; });
+  if (TAURI.app) TAURI.app.getVersion().then((v) => { $('#appVersion').textContent = 'v' + v; }).catch(() => {});
+  // procura sozinho, no máximo uma vez por dia, alguns segundos depois de abrir
+  let last = 0; try { last = +localStorage.getItem('doodle.lastUpdateCheck') || 0; } catch (e) { /* ok */ }
+  if (Date.now() - last > 20 * 3600 * 1000) setTimeout(() => checkUpdates(false), 4000);
+}
 function applyPin() {
   $('#app').classList.toggle('layers-floating', !S.layersPinned);
   $('#btnPin').setAttribute('aria-pressed', String(S.layersPinned));

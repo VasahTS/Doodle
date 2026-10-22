@@ -1,5 +1,6 @@
-# Builds the Windows installer and publishes it as a GitHub Release.
+# Builds the Windows and Linux installers and publishes them as a GitHub Release.
 # Runs when a version tag (v0.1.0, v0.2.0, ...) is pushed, or by hand from the Actions tab.
+# The installed app checks the latest release's latest.json to update itself.
 name: Release
 
 on:
@@ -11,10 +12,24 @@ permissions:
   contents: write
 
 jobs:
-  windows:
-    runs-on: windows-latest
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: windows-latest
+            bundles: nsis
+          - platform: ubuntu-22.04
+            bundles: appimage,deb
+    runs-on: ${{ matrix.platform }}
     steps:
       - uses: actions/checkout@v4
+
+      - name: Linux build libraries
+        if: matrix.platform == 'ubuntu-22.04'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
 
       - uses: dtolnay/rust-toolchain@stable
 
@@ -29,19 +44,27 @@ jobs:
       - name: Install Tauri CLI
         run: npm install -g @tauri-apps/cli@^2
 
-      - name: Build installer and publish release
+      - name: Build and publish
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # assina as atualizações; a chave fica só nos segredos do repositório
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ''
         with:
           tauriScript: tauri
+          args: --bundles ${{ matrix.bundles }}
           tagName: v__VERSION__
           releaseName: Doodle v__VERSION__
           releaseBody: |
-            **Português:** baixe o arquivo `Doodle_..._x64-setup.exe` abaixo e dê dois cliques para instalar.
-            O Windows pode avisar que o app não é assinado: clique em "Mais informações" e depois em "Executar assim mesmo".
+            **Português**
+            - Windows: baixe `Doodle_..._x64-setup.exe` e dê dois cliques. Se o Windows avisar que o app não é assinado, clique em "Mais informações" e depois em "Executar assim mesmo".
+            - Linux: baixe o `.AppImage`, marque como executável (`chmod +x Doodle_*.AppImage`) e abra. Ou instale o `.deb` no Ubuntu/Debian.
+            - Depois de instalado, o app avisa sozinho quando sair uma versão nova.
 
-            **English:** download `Doodle_..._x64-setup.exe` below and double-click it to install.
-            Windows may warn that the app is unsigned: click "More info", then "Run anyway".
+            **English**
+            - Windows: download `Doodle_..._x64-setup.exe` and double-click it. If Windows warns the app is unsigned, click "More info", then "Run anyway".
+            - Linux: download the `.AppImage`, make it executable (`chmod +x Doodle_*.AppImage`) and run it. Or install the `.deb` on Ubuntu/Debian.
+            - Once installed, the app tells you when a new version is out.
           releaseDraft: false
           prerelease: false

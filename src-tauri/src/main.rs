@@ -16,6 +16,10 @@ fn main() {
         .plugin(tauri_plugin_dialog::init())
         // Ler e gravar os arquivos .ora e .png
         .plugin(tauri_plugin_fs::init())
+        // Baixar e instalar atualizações publicadas no GitHub
+        .plugin(tauri_plugin_updater::Builder::new().build())
+        // Reabrir o app depois de atualizar
+        .plugin(tauri_plugin_process::init())
         .invoke_handler(tauri::generate_handler![arquivo_inicial])
         .run(tauri::generate_context!())
         .expect("erro ao iniciar o Doodle");

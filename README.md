@@ -3,7 +3,7 @@
 A light sketching app: open it and start drawing. Layers, folders, pen pressure, lasso, free transform and `.ora` files.
 Built with [Tauri](https://tauri.app) (Rust underneath, HTML interface). Available in **English** and **Português (Brasil)**.
 
-**[Download for Windows](../../releases/latest)**
+**[Download for Windows and Linux](../../releases/latest)**
 
 ## Features
 
@@ -15,6 +15,7 @@ Built with [Tauri](https://tauri.app) (Rust underneath, HTML interface). Availab
 - **Free transform** (`Ctrl+T`): move, scale, rotate, skew, distort, flip, with a right-click menu
 - **Canvas rotation** (hold `R` and drag, `'` resets), **drag zoom** (hold `Z`), **mirrored view** (`F1`)
 - **Every shortcut can be changed** (Shortcuts button or `Ctrl+K`)
+- **Updates itself** from GitHub releases, no need to visit the repository
 - Saves **OpenRaster (.ora)**, which Krita, GIMP and MyPaint also open; exports PNG
 
 ## Build from source
@@ -31,7 +32,13 @@ The whole interface lives in `src/index.html`. The Rust side (`src-tauri/`) open
 
 ## Releases
 
-Pushing a version tag (for example `v0.2.0`) runs `.github/workflows/release.yml`, which builds the Windows installer on GitHub and attaches it to a release. Bump `version` in `src-tauri/tauri.conf.json` first.
+Pushing a version tag (for example `v0.2.0`) runs `.github/workflows/release.yml`, which builds the Windows installer and the Linux AppImage and .deb on GitHub and attaches it to a release. Bump `version` in `src-tauri/tauri.conf.json` first.
+
+## Updates
+
+The installed app checks this repository's latest release about once a day (and from **File → Check for updates**). Updates are downloaded and installed from inside the app, then it reopens.
+
+Update files are signed. The workflow reads the private key from the repository secret `TAURI_SIGNING_PRIVATE_KEY`; the matching public key is in `src-tauri/tauri.conf.json`. Without that secret the release build fails on purpose.
 
 ## License
 
@@ -44,4 +51,4 @@ Pushing a version tag (for example `v0.2.0`) runs `.github/workflows/release.yml
 Um app leve para rabiscar: abriu, já está desenhando. Tem camadas, pastas, pressão da caneta, laço, transformação livre e arquivos `.ora`.
 Instruções completas em português no [LEIA-ME.md](LEIA-ME.md).
 
-**[Baixar para Windows](../../releases/latest)**
+**[Baixar para Windows e Linux](../../releases/latest)**

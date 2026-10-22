@@ -5,9 +5,16 @@ Feito com Tauri (Rust por baixo, interface em HTML).
 
 ## Baixar pronto
 
-Na página do projeto no GitHub, abra **Releases** e baixe o `Doodle_..._x64-setup.exe`.
-O Windows pode avisar que o app não é assinado: clique em "Mais informações" e depois em
-"Executar assim mesmo".
+Na página do projeto no GitHub, abra **Releases**:
+
+- **Windows:** baixe o `Doodle_..._x64-setup.exe`. O Windows pode avisar que o app não é
+  assinado: clique em "Mais informações" e depois em "Executar assim mesmo".
+- **Linux:** baixe o `.AppImage`, marque como executável (`chmod +x Doodle_*.AppImage`) e abra.
+  No Ubuntu/Debian também dá para instalar o `.deb`. A atualização automática funciona no AppImage.
+
+Depois de instalado, o app procura atualizações sozinho (uma vez por dia) e mostra um aviso
+com o botão **Atualizar agora**. Também dá para procurar pelo menu do arquivo, em
+**Procurar atualizações**. Ele baixa, instala e abre de novo, sem precisar entrar no GitHub.
 
 O app abre em português ou inglês conforme o idioma do Windows. Para trocar, clique no
 nome do arquivo, lá em cima, e escolha o idioma no fim do menu.
@@ -109,3 +116,13 @@ o que aparecer.
 É o OpenRaster, um formato aberto de desenho com camadas. O Krita, o GIMP e
 o MyPaint também abrem esses arquivos. Por dentro é um `.zip` com uma imagem
 PNG para cada camada e uma lista com nome, opacidade e visibilidade.
+
+## Publicar uma versão nova (para quem mantém o projeto)
+
+1. Mude o número em `src-tauri/tauri.conf.json` (`"version": "0.2.0"`, por exemplo).
+2. Envie para o GitHub e crie a etiqueta da versão: `git tag v0.2.0` e `git push origin main v0.2.0`.
+3. O GitHub gera o instalador, publica em Releases e quem já tem o app recebe o aviso de atualização.
+
+As atualizações são assinadas com a chave guardada no segredo `TAURI_SIGNING_PRIVATE_KEY`
+do repositório. Sem essa chave a publicação não funciona, e se ela for perdida o app instalado
+para de aceitar atualizações novas. Guarde uma cópia num lugar seguro.
