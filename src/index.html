@@ -964,6 +964,13 @@ const $ = (s) => document.querySelector(s);
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const DPR = () => window.devicePixelRatio || 1;
 const TAURI = window.__TAURI__ || null;
+// The global updater API can exist even when its native plugin is not registered.
+// Resolve the installed identity before enabling any update request.
+const updatesAllowed = TAURI?.updater
+  ? (TAURI.app?.getIdentifier
+      ? Promise.resolve(TAURI.app.getIdentifier()).then(id => id !== 'com.daniel.doodle.performance-test').catch(() => false)
+      : Promise.resolve(true))
+  : Promise.resolve(false);
 const IN_PREVIEW = !TAURI && (() => { try { return window.self !== window.top; } catch (e) { return true; } })();
 const REDUCED_MOTION = matchMedia('(prefers-reduced-motion: reduce)');
 
@@ -4129,7 +4136,7 @@ function showUpdate(upd) {
   $('#updBanner').hidden = false;
 }
 async function checkUpdates(manual) {
-  if (!TAURI || !TAURI.updater) return;
+  if (!await updatesAllowed) return;
   try {
     if (manual) toast(t('Procurando atualizações…'));
     const upd = await TAURI.updater.check();
@@ -4142,6 +4149,7 @@ async function checkUpdates(manual) {
   }
 }
 async function installUpdate() {
+  if (!await updatesAllowed) return;
   const upd = pendingUpdate; if (!upd) return;
   if (S.dirty && !(await confirmBox(t('Atualizar sem salvar?'), t('O app vai fechar e abrir de novo. As alterações não salvas deste desenho serão perdidas.'), t('Atualizar mesmo assim')))) return;
   $('#updNow').disabled = true; $('#updLater').disabled = true;
@@ -4165,7 +4173,8 @@ async function installUpdate() {
 $('#updNow').addEventListener('click', installUpdate);
 $('#updLater').addEventListener('click', () => { $('#updBanner').hidden = true; });
 $('#btnUpdates').addEventListener('click', () => { closeSettingsMenu(true); checkUpdates(true); });
-$('#btnUpdates').disabled = !(TAURI && TAURI.updater);
+$('#btnUpdates').disabled = true;
+updatesAllowed.then(allowed => { $('#btnUpdates').disabled = !allowed; });
 $('#btnRecovery').addEventListener('click', () => { void recovery.show().catch(e => toast(t('Não consegui recuperar: ') + (e.message || e), 5000)); });
 $('#recoveryShow').addEventListener('click', () => $('#btnRecovery').click());
 $('#recoveryLater').addEventListener('click', () => { $('#recoveryNotice').hidden = true; });

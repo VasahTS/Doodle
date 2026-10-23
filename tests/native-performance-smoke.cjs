@@ -71,7 +71,10 @@ function stop(app) {
       const identity = await __TAURI__.app.getIdentifier();
       const name = await __TAURI__.app.getName();
       const graphics = await __TAURI__.core.invoke('graphics_preferences');
-      const updaterAvailable = !!__TAURI__.updater;
+      const updatesControlDisabled = document.querySelector('#btnUpdates').disabled;
+      let updaterRejection = '';
+      try { await __TAURI__.core.invoke('plugin:updater|check'); }
+      catch (e) { updaterRejection = String(e); }
       d.S.recoveryInterval = 0; d.newDocument(256, 256, 'none');
       Object.assign(d.S.tools.brush, { size: 8, smoothing: 0, opacity: 1, pSize: true, pOpacity: false });
       d.runAction('tool.brush'); await frame();
@@ -92,10 +95,11 @@ function stop(app) {
       const ora = await d.buildOra(); await d.loadOra(ora); const reopened = sample();
       await __TAURI__.core.invoke('set_graphics_preference', { mode: 'software' });
       const pending = await __TAURI__.core.invoke('graphics_preferences');
-      return { identity, name, graphics, updaterAvailable, hoverSceneFrames, painted, undone, redone, reopened, oraBytes: ora.length, pending };
+      return { identity, name, graphics, updatesControlDisabled, updaterRejection, hoverSceneFrames, painted, undone, redone, reopened, oraBytes: ora.length, pending };
     });
     assert.equal(result.identity, 'com.daniel.doodle.performance-test');
-    assert.equal(result.updaterAvailable, false, 'Test build must not load the stable updater');
+    assert.equal(result.updatesControlDisabled, true, 'Test update control must stay disabled');
+    assert.match(result.updaterRejection, /plugin.*updater.*not found|plugin.*not found.*updater/i, 'Test build must not register the native updater');
     assert.equal(result.graphics.applied, 'auto');
     assert.equal(result.graphics.supported, true);
     assert.equal(result.hoverSceneFrames, 0);
