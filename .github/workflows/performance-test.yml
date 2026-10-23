@@ -42,6 +42,8 @@ jobs:
       - name: Build the separate Windows test installer
         shell: pwsh
         run: |
+          $build = @{ channel = 'performance-liquify-worker-v1'; revision = $env:GITHUB_SHA } | ConvertTo-Json -Compress
+          "window.__DOODLE_BUILD__ = $build;" | Set-Content -LiteralPath 'src/build-info.js' -Encoding utf8
           tauri build --ci --bundles nsis --config src-tauri/tauri.performance.conf.json
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Smoke test the real Windows app
@@ -76,16 +78,16 @@ jobs:
             const { owner, repo } = context.repo;
             const tag = `performance-canvas-${context.runId}-${process.env.GITHUB_RUN_ATTEMPT}`;
             const body = [
-              'Experimental Windows x64 build for canvas performance testing.',
+              'Experimental Windows x64 build with sparse GPU/worker Liquify and a cooperative CPU fallback.',
               '',
               'Download and run **Doodle-Performance-Test-Windows-x64-setup.exe** below.',
               'It installs as **Doodle Performance Test**, separately from stable Doodle, with independent settings/recovery, no ORA file association and no automatic updater.',
               '',
-              'Please compare canvas hover, pen strokes, zoom and panning against stable 0.3.0 on the same computer. Save a local diagnostic from Settings and note your OS, GPU and display scaling.',
+              'Please test Liquify Push with fast strokes, including 4K and 8000 x 8000 canvases and the 500 px brush. Check selection, transparent edges and undo/redo. Save a diagnostic AFTER the slow stroke; it now includes Liquify backend, timings, queue and source revision.',
               '',
               'Known issues retained from the test snapshot: selection action bar may be stale; copying between documents loses the internal clipboard. See PERFORMANCE-TESTING.md for details.',
               '',
-              'Native Windows smoke checks passed: startup, isolated identity, updater absence, canvas input/undo/redo, ORA round trip and graphics preference after restart. Physical tablet feel and affected hardware still need testers.',
+              'Native Windows smoke checks passed: startup, isolated identity, updater absence, canvas input/undo/redo, extreme native Liquify at 4K and 8000 x 8000, ORA round trip and graphics preference after restart. Physical tablet feel and affected hardware still need testers.',
               '',
               `Source: ${context.sha} on test/performance-canvas.`,
               `Build: https://github.com/${owner}/${repo}/actions/runs/${context.runId}`,
@@ -94,7 +96,7 @@ jobs:
             ].join('\n');
             const { data: release } = await github.rest.repos.createRelease({
               owner, repo, tag_name: tag, target_commitish: context.sha,
-              name: 'Doodle — Canvas performance test (Windows)',
+              name: 'Doodle — Liquify performance test (Windows)',
               body, draft: true, prerelease: true, make_latest: 'false',
             });
             for (const file of fs.readdirSync('test-download')) {

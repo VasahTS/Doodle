@@ -113,6 +113,25 @@ function stop(app) {
     assert.equal(result.pending.applied, 'auto');
     assert.deepEqual(errors, []);
     console.log('PASS Native Windows: isolated app identity; updater absent; pen hover; stroke; undo/redo; ORA round trip; persistent graphics preference');
+    for (const size of [3840, 8000]) {
+      const liquify = await app.page.evaluate(async size => {
+        const d=__doodle; d.newDocument(size,size===3840?2160:8000,'none');d.S.recoveryInterval=0;
+        d.runAction('tool.liquify');Object.assign(d.S.tools.liquify,{size:500,strength:1,pStrength:true,mode:'push'});
+        const l=d.doc.active,tile=document.createElement('canvas');tile.width=64;tile.height=64;
+        const ctx=tile.getContext('2d');ctx.fillStyle='#ed4070';ctx.fillRect(0,0,32,64);ctx.fillStyle='#26acfc';ctx.fillRect(32,0,32,32);
+        l.ctx.fillStyle=l.ctx.createPattern(tile,'repeat');l.ctx.fillRect(0,0,d.doc.W,d.doc.H);d.afterDocChange(false);
+        const sample=()=>[l.ctx.getImageData(0,0,128,128).data,l.ctx.getImageData(size-128,d.doc.H-128,128,128).data];
+        const equal=(a,b)=>a.every((v,j)=>v.every((n,i)=>n===b[j][i]));const before=sample(),v=document.querySelector('#view'),b=v.getBoundingClientRect();
+        const event=(type,x,y)=>{const p=d.docToScreen({x,y});v.dispatchEvent(new PointerEvent(type,{pointerId:71,pointerType:'pen',pressure:1,button:0,buttons:type==='pointerup'?0:1,clientX:b.left+p.x,clientY:b.top+p.y,bubbles:true}));};
+        event('pointerdown',4,4);for(let i=1;i<=12;i++)event('pointermove',4+(size-8)*i/12,4+(d.doc.H-8)*i/12);event('pointerup',size-4,d.doc.H-4);
+        await d.finishLiquify();const after=sample();d.undo();const undoExact=equal(before,sample());d.redo();const redoExact=equal(after,sample());
+        return {changed:!equal(before,after),undoExact,redoExact,stats:d.performanceSnapshot().liquify.lastStroke,build:d.performanceSnapshot().build};
+      },size);
+      assert(liquify.changed&&liquify.undoExact&&liquify.redoExact,'Native extreme Liquify pixels/undo/redo failed');
+      assert.equal(liquify.stats.status,'complete');assert.equal(liquify.stats.backend,'worker');
+      assert.equal(liquify.build.revision,process.env.GITHUB_SHA);
+      console.log('PASS Native Windows Liquify extreme '+size+': '+JSON.stringify(liquify));
+    }
     stop(app); app = null; await sleep(1000);
     app = await start();
     const restarted = await app.page.evaluate(async () => {

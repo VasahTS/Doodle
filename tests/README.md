@@ -2,7 +2,7 @@
 
 Install Playwright in a separate tools folder or expose an existing installation through `NODE_PATH`. No build dependencies are added to Doodle.
 
-Run all twelve suites with `node tests/run.cjs`. Set `DOODLE_BROWSER=msedge` to run the browser checks in Edge. The release metadata suite only needs Node.js. The PSD suite also needs the external test dependency described below.
+Run all thirteen suites with `node tests/run.cjs`. Set `DOODLE_BROWSER=msedge` to run the browser checks in Edge. The release metadata suite only needs Node.js. The PSD suite also needs the external test dependency described below.
 
 For an externally managed Chromium installation, set `DOODLE_CHROMIUM_PATH` to its executable. `DOODLE_BROWSER_ARGS` optionally accepts a JSON array of additional test-only launch arguments. `tests/browser.cjs` centralizes the launcher; no browser dependency is shipped with the app.
 
@@ -59,3 +59,7 @@ Install `ag-psd` in a separate tools folder using `npm install --ignore-scripts 
 Run `node tests/psd-export.cjs`. It verifies lossless pixel channels, empty layers, nested/open/closed/hidden folders, Unicode names, transparent pixels, clipping, locks, effective opacity, the composite preview, the File menu, English text, cancellation, fallback download Blob and native Tauri dialog/filesystem calls using a stub. It also verifies that PSD export leaves the ORA filename, save destination and unsaved state intact.
 
 Set `DOODLE_PSD_OUTPUT` to a fixture directory to save `layers.psd` and `expected.png`. With `psd-tools`, Pillow and numpy available, run `python tests/psd-composite.py FIXTURE_DIRECTORY`. It recomposes the editable layers with `ignore_preview=True` and compares premultiplied colors and alpha against the Doodle image, allowing at most 3/255 and 2/255 respectively. Validation used psd-tools 1.26.0. Native Photoshop/Clip Studio Paint opening still needs manual verification.
+
+# Asynchronous and extreme Liquify
+
+Run node tests/liquify-async.cjs and node tests/liquify-stress.cjs. The stress test includes 4K, the 8000 x 8000 application limit, 500 px/maximum strength, minimal brush jumps, selection/alpha lock, 12 layers, CPU Worker and cooperative fallback. Timings are environment-specific and include post-release completion; UI timers are not FPS. See docs/performance-liquify.md. Set DOODLE_LIQUIFY_BACKEND=cpu or cooperative when running tests/liquify.cjs to check its complete correctness suite on each fallback.

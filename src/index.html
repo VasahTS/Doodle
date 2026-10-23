@@ -708,6 +708,8 @@ body.resizing-layers, body.resizing-layers * { cursor: col-resize !important; }
   <symbol id="i-trash" viewBox="0 0 24 24"><path d="M4 6.5h16"/><path d="M9 6.5V4.5h6v2"/><path d="M6 6.5l1 13a1.5 1.5 0 001.5 1.5h7a1.5 1.5 0 001.5-1.5l1-13"/><path d="M10 10.5v6M14 10.5v6"/></symbol>
 </svg>
 
+<script src="build-info.js"></script>
+<script src="liquify-engine.js"></script>
 <script>
 (() => {
 'use strict';
@@ -758,6 +760,7 @@ const EN = {
   "Medições locais para investigar lentidão. O relatório não inclui desenhos, nomes de arquivos ou caminhos pessoais.": "Local measurements to investigate slowdowns. The report excludes drawings, file names and personal paths.",
   "O tempo de pintura mede trabalho da CPU; não mede sozinho o tempo de apresentação da GPU.": "Paint time measures CPU work; it does not measure GPU presentation time on its own.",
   "Medir fluidez (3 s)": "Measure responsiveness (3 s)",
+  "Não foi possível concluir o Liquify. A passada foi revertida.": "Could not finish Liquify. The stroke was reverted.",
   "Salvar diagnóstico": "Save diagnostics",
   "Desfazer: ": "Undo: ",
   "Refazer: ": "Redo: ",
@@ -1127,6 +1130,7 @@ function nextName(prefix) {
 function selectOnly(n) { doc.sel = new Set([n]); doc.active = n; }
 
 function setupDoc(W, H) {
+  cancelLiquify();
   recovery.newDocument();
   doc.W = W; doc.H = H;
   strokeCv = mkCanvas(W, H); strokeCtx = strokeCv.getContext('2d');
@@ -1386,6 +1390,7 @@ function mergeSelected() {
 }
 // Trava de pixels: o pincel e o balde só pintam onde a camada já tem desenho
 function setAlphaLock(ls, on) {
+  if (liquify) return finishLiquify().then(() => setAlphaLock(ls, on));
   if (!ls.length) return;
   act(() => { ls.forEach((l) => { l.alphaLock = on; }); });
   toast(on ? (ls.length === 1 ? t('Pixels transparentes de "') + ls[0].name + t('" travados: o pincel não vaza para fora do desenho.') : t('Pixels travados em ') + ls.length + t(' camadas.'))
@@ -1470,6 +1475,7 @@ function dropZone(li, node, e) {
   return y < 0.5 ? 'above' : 'below';
 }
 function clickRow(node, e) {
+  if (liquify) return finishLiquify().then(() => clickRow(node, e));
   if (e.ctrlKey || e.metaKey) {
     if (doc.sel.has(node) && doc.sel.size > 1) {
       doc.sel.delete(node);
@@ -1718,6 +1724,11 @@ function buildCache(targets) {
 function paintLayer(ctx, l, alpha, op, live, pad) {
   ctx.globalAlpha = alpha; ctx.globalCompositeOperation = op;
   if (live && stroke && l === stroke.layer) { composeScratch(l); ctx.globalAlpha = alpha; ctx.globalCompositeOperation = op; ctx.drawImage(scratchCv, 0, 0); }
+  else if (live && liquify && l === liquify.layer) {
+    const p = liquifyPreview(liquify);
+    if (p.pending) ctx.drawImage(l.canvas, 0, 0);
+    else ctx.drawImage(p.canvas, p.rect.x, p.rect.y, p.rect.w, p.rect.h);
+  }
   else ctx.drawImage(l.canvas, 0, 0);
   if (live && tf) {
     const t = tf.targets.find((x) => x.layer === l);
@@ -2026,107 +2037,155 @@ function intersect(a, b) {
    Liquify: deformação local, sem copiar a tela inteira por movimento.
    O histórico captura cada bloco original uma única vez por passada.
    ========================================================= */
-function beginLiquify(e, pt) {
-  const layer = drawableLayer(); if (!layer) return false;
-  const c = { ...S.tools.liquify };
-  liquify = { layer, cfg: c, pointerId: e.pointerId, x: pt.x, y: pt.y,
-    pressure: pressureOf(e, c), tiles: new Map(), alt: e.altKey, lastMove: performance.now() };
-  buildCache(new Set([layer]));
-  if (c.mode !== 'push') {
-    liquifyDab(pt.x, pt.y, 0, 0, liquify.pressure, e.altKey);
-    liquify.timer = setInterval(() => {
-      const s = liquify;
-      if (s && performance.now() - s.lastMove >= 50) {
-        liquifyDab(s.x, s.y, 0, 0, s.pressure, s.alt); requestRender();
-      }
-    }, 50);
-  }
-  requestRender(); return true;
+let liquifySequence = 0, lastLiquify = null;
+const pendingLiquifyInput = [];
+function liquifyPreview(s, defer = false) {
+  const key = [stage.clientWidth, stage.clientHeight, displayDpr(), ...Object.values(viewM())].join(',');
+  if (s.preview?.key === key) return s.preview;
+  const corners = [[0,0],[stage.clientWidth,0],[0,stage.clientHeight],[stage.clientWidth,stage.clientHeight]].map(([x,y]) => toDocXY(x,y));
+  const x = Math.max(0, Math.floor(Math.min(...corners.map(p => p.x)) / 128) * 128);
+  const y = Math.max(0, Math.floor(Math.min(...corners.map(p => p.y)) / 128) * 128);
+  const x1 = Math.min(doc.W, Math.ceil(Math.max(...corners.map(p => p.x)) / 128) * 128);
+  const y1 = Math.min(doc.H, Math.ceil(Math.max(...corners.map(p => p.y)) / 128) * 128);
+  const rect = { x: Math.min(x, doc.W - 1), y: Math.min(y, doc.H - 1), w: Math.max(1, x1-x), h: Math.max(1, y1-y) };
+  // Power-of-two sampling keeps tile boundaries aligned. This preview contains
+  // at least one source sample per display pixel; document pixels stay full size.
+  const scale = Math.min(1, 2 ** Math.ceil(Math.log2(S.zoom * displayDpr())));
+  const canvas = mkCanvas(Math.ceil(rect.w * scale), Math.ceil(rect.h * scale)), ctx = canvas.getContext('2d');
+  const p = s.preview = { key, rect, scale, canvas, ctx, tile: mkCanvas(128, 128) };
+  const draw = () => ctx.drawImage(s.layer.canvas, rect.x, rect.y, rect.w, rect.h, 0, 0, rect.w * scale, rect.h * scale);
+  if (defer && typeof createImageBitmap === 'function') {
+    p.pending = true;
+    p.ready = createImageBitmap(s.layer.canvas, rect.x, rect.y, rect.w, rect.h, { resizeWidth: canvas.width, resizeHeight: canvas.height, resizeQuality: 'low' })
+      .then(bitmap => { ctx.drawImage(bitmap, 0, 0); bitmap.close(); }).catch(draw).finally(() => { p.pending = false; });
+  } else draw();
+  return p;
 }
-function extendLiquify(x, y, p, alt) {
-  const s = liquify, dx = x - s.x, dy = y - s.y, dist = Math.hypot(dx, dy);
-  if (dist < 0.01) { s.pressure = p; s.alt = alt; return; }
-  const count = Math.ceil(dist / Math.max(1, s.cfg.size * 0.1));
-  for (let i = 1; i <= count; i++) {
-    const f = i / count;
-    liquifyDab(s.x + dx * f, s.y + dy * f, dx / count, dy / count, s.pressure + (p - s.pressure) * f, alt);
-  }
-  s.x = x; s.y = y; s.pressure = p; s.alt = alt; s.lastMove = performance.now();
+function updateLiquifyPreview(s, b, after) {
+  const p = s.preview; if (!p) return;
+  const x = (b.x-p.rect.x)*p.scale, y = (b.y-p.rect.y)*p.scale, w = b.w*p.scale, h = b.h*p.scale;
+  if (x+w <= 0 || y+h <= 0 || x >= p.canvas.width || y >= p.canvas.height) return;
+  const ctx = p.tile.getContext('2d'); ctx.putImageData(after, 0, 0);
+  p.ctx.clearRect(x, y, w, h); p.ctx.drawImage(p.tile, 0, 0, b.w, b.h, x, y, w, h);
 }
-function liquifyDab(cx, cy, dx, dy, pressure, reverse) {
-  const s = liquify, c = s.cfg, r = c.size / 2;
-  const strength = c.strength * (c.pStrength ? pressure : 1);
-  if (!(strength > 0)) return;
-  let rect = rectClamp({ x: cx - r, y: cy - r, w: 2 * r, h: 2 * r });
-  if (rect && selection) rect = rectClamp(intersect(rect, selection.bbox));
-  if (!rect) return;
-  // A margem de leitura inclui os pixels de origem do deslocamento.
-  const pad = Math.ceil(r * 0.4 + 2);
-  const srcRect = rectClamp({ x: rect.x - pad, y: rect.y - pad, w: rect.w + 2 * pad, h: rect.h + 2 * pad });
-  const ctx = s.layer.ctx, src = ctx.getImageData(srcRect.x, srcRect.y, srcRect.w, srcRect.h);
-  const out = ctx.getImageData(rect.x, rect.y, rect.w, rect.h), dst = out.data;
-  const mask = selection ? selection.mctx.getImageData(rect.x, rect.y, rect.w, rect.h).data : null;
-  let mode = c.mode, sign = reverse ? -1 : 1, changed = false;
-  if (reverse && mode === 'expand') mode = 'pinch'; else if (reverse && mode === 'pinch') mode = 'expand';
-  const mx = dx * strength, my = dy * strength;
-  for (let y = 0; y < rect.h; y++) for (let x = 0; x < rect.w; x++) {
-    const i = (y * rect.w + x) * 4;
-    if (mask && !mask[i + 3]) continue;
-    if (s.layer.alphaLock && !dst[i + 3]) continue;
-    const vx = rect.x + x + 0.5 - cx, vy = rect.y + y + 0.5 - cy;
-    const d2 = (vx * vx + vy * vy) / (r * r); if (d2 >= 1) continue;
-    const falloff = (1 - d2) ** 2;
-    let sx, sy;
-    if (mode === 'push') { sx = vx - mx * falloff; sy = vy - my * falloff; }
-    else if (mode === 'twirl') {
-      const a = -sign * strength * 0.18 * falloff, co = Math.cos(a), si = Math.sin(a);
-      sx = vx * co - vy * si; sy = vx * si + vy * co;
-    } else {
-      const scale = Math.exp((mode === 'expand' ? -1 : 1) * strength * 0.18 * falloff);
-      sx = vx * scale; sy = vy * scale;
-    }
-    sx += cx - 0.5; sy += cy - 0.5;
-    const ix = Math.floor(sx), iy = Math.floor(sy), fx = sx - ix, fy = sy - iy;
-    // Bilinear em cores pré-multiplicadas: bordas transparentes sem halo preto.
-    let a = 0, red = 0, green = 0, blue = 0;
-    for (let yy = 0; yy < 2; yy++) for (let xx = 0; xx < 2; xx++) {
-      const px = ix + xx, py = iy + yy;
-      if (px < 0 || py < 0 || px >= doc.W || py >= doc.H) continue;
-      const j = ((py - srcRect.y) * srcRect.w + px - srcRect.x) * 4;
-      const w = (xx ? fx : 1 - fx) * (yy ? fy : 1 - fy) * src.data[j + 3];
-      a += w; red += src.data[j] * w; green += src.data[j + 1] * w; blue += src.data[j + 2] * w;
-    }
-    // Com a trava, preserva exatamente o alfa; sem cor de origem, preserva o pixel.
-    if (s.layer.alphaLock && a < 0.5) continue;
-    const na = s.layer.alphaLock ? dst[i + 3] : Math.round(a);
-    const nr = na && a ? Math.round(red / a) : 0, ng = na && a ? Math.round(green / a) : 0, nb = na && a ? Math.round(blue / a) : 0;
-    if (dst[i] === nr && dst[i + 1] === ng && dst[i + 2] === nb && dst[i + 3] === na) continue;
-    changed = true;
-    dst[i] = nr; dst[i + 1] = ng; dst[i + 2] = nb; dst[i + 3] = na;
+function deferLiquifyInput(e) {
+  if (!liquify?.ending) return false;
+  if (e.type === 'lostpointercapture') return true;
+  if (e.type === 'pointerdown') {
+    try { view.setPointerCapture(e.pointerId); } catch (_) { /* Synthetic/test pointer. */ }
   }
-  if (changed) {
-    // Captura cada bloco antes da primeira gravação, fora do laço de pixels.
-    for (let ty = Math.floor(rect.y / 128) * 128; ty < rect.y + rect.h; ty += 128) {
-      for (let tx = Math.floor(rect.x / 128) * 128; tx < rect.x + rect.w; tx += 128) {
-        const key = tx + ',' + ty;
-        if (!s.tiles.has(key)) {
-          const b = rectClamp({ x: tx, y: ty, w: 128, h: 128 });
-          s.tiles.set(key, { rect: b, before: ctx.getImageData(b.x, b.y, b.w, b.h) });
-        }
-      }
-    }
-    ctx.putImageData(out, rect.x, rect.y);
+  // Keep each stroke and its pressure in order, including strokes started while
+  // the previous worker is finishing. Never replace a queued path by its endpoint.
+  if (e.type !== 'pointermove' || e.buttons || pendingLiquifyInput.length) {
+    pendingLiquifyInput.push(new PointerEvent(e.type, { pointerId: e.pointerId, pointerType: e.pointerType,
+      clientX: e.clientX, clientY: e.clientY, pressure: e.pressure, button: e.button, buttons: e.buttons,
+      altKey: e.altKey, shiftKey: e.shiftKey, ctrlKey: e.ctrlKey, metaKey: e.metaKey, bubbles: true }));
   }
+  return true;
 }
-function endLiquify() {
+function replayLiquifyInput() {
+  while (pendingLiquifyInput.length && !liquify?.ending) view.dispatchEvent(pendingLiquifyInput.shift());
+}
+function cancelLiquify() {
+  pendingLiquifyInput.length = 0;
   const s = liquify; if (!s) return;
-  clearInterval(s.timer); liquify = null; rcache = null;
-  if (s.tiles.size) {
-    const entries = [...s.tiles.values()].map((b) => pixelEntry(s.layer, b.rect, b.before));
-    pushHistory({ resources: entries.flatMap(e => e.resources), undo() { entries.forEach((e) => e.undo()); }, redo() { entries.forEach((e) => e.redo()); } });
+  clearInterval(s.timer); s.worker.terminate(); liquify = null; s.resolve(false);
+}
+async function finishLiquify() {
+  while (liquify) await endLiquify();
+}
+function completeLiquify(s, stats, error) {
+  if (liquify !== s) return;
+  clearInterval(s.timer); if (error) s.worker.terminate(); else DoodleLiquifyEngine.release(s.worker); liquify = null; rcache = null;
+  if (error) {
+    for (const b of s.tiles.values()) s.layer.ctx.putImageData(b.before, b.rect.x, b.rect.y);
+    setDirty(s.wasDirty || S.dirty);
+    toast(t('Não foi possível concluir o Liquify. A passada foi revertida.'), 6000);
+  } else if (s.tiles.size) {
+    const entries = [...s.tiles.values()];
+    const put = key => { for (const b of entries) s.layer.ctx.putImageData(b[key], b.rect.x, b.rect.y); updateThumb(s.layer); };
+    pushHistory({ resources: entries.flatMap(b => [b.before, b.after]), undo() { put('before'); }, redo() { put('after'); } });
     updateThumb(s.layer);
   }
-  requestRender();
+  lastLiquify = { ...s.info, ...stats, status: error ? 'reverted' : 'complete', error: error || null,
+    elapsedMs: performance.now() - s.started, finishWaitMs: s.ended ? performance.now() - s.ended : 0,
+    inputEvents: s.events, mainPublishMs: s.publishMs, maxMainPublishMs: s.maxPublishMs };
+  requestRender(); replayLiquifyInput(); s.resolve(!error);
+}
+async function liquifyMessage(s, m) {
+  if (liquify !== s || m.id !== s.id) return;
+  if (m.type === 'done' || m.type === 'error') { completeLiquify(s, m.stats, m.message); return; }
+  try {
+    if (m.type === 'tiles') {
+      const transfer = [], tiles = [];
+      for (const b of m.tiles) {
+        const item = { ...b };
+        if (s.worker.backend === 'worker' && typeof createImageBitmap === 'function') {
+          item.bitmap = await createImageBitmap(s.layer.canvas, b.x, b.y, b.w, b.h);
+          transfer.push(item.bitmap);
+          if (s.selection) { item.maskBitmap = await createImageBitmap(s.selection.mask, b.x, b.y, b.w, b.h); transfer.push(item.maskBitmap); }
+        } else {
+          item.data = s.layer.ctx.getImageData(b.x, b.y, b.w, b.h).data; transfer.push(item.data.buffer);
+          if (s.selection) { item.mask = s.selection.mctx.getImageData(b.x, b.y, b.w, b.h).data; transfer.push(item.mask.buffer); }
+        }
+        tiles.push(item);
+      }
+      if (liquify !== s) { for (const b of tiles) { b.bitmap?.close(); b.maskBitmap?.close(); } return; }
+      s.worker.postMessage({ type: 'reply', request: m.request, value: tiles }, transfer);
+    } else if (m.type === 'paint') {
+      await s.previewReady;
+      if (liquify !== s) return;
+      const start = performance.now();
+      liquifyPreview(s);
+      for (const b of m.tiles) {
+        const after = new ImageData(b.data, b.w, b.h);
+        if (b.before) s.tiles.set(b.key, { rect: { x: b.x, y: b.y, w: b.w, h: b.h }, before: new ImageData(b.before, b.w, b.h), after });
+        else s.tiles.get(b.key).after = after;
+        s.layer.ctx.putImageData(after, b.x, b.y);
+        updateLiquifyPreview(s, b, after);
+      }
+      if (m.tiles.length && !s.changed) { s.changed = true; setDirty(true); }
+      const elapsed = performance.now() - start; s.publishMs += elapsed; s.maxPublishMs = Math.max(s.maxPublishMs, elapsed);
+      requestRender();
+      // Acknowledge a bounded batch before the worker produces more previews.
+      s.worker.postMessage({ type: 'reply', request: m.request, value: true });
+    }
+  } catch (e) { completeLiquify(s, null, String(e?.message || e)); }
+}
+function beginLiquify(e, pt) {
+  const layer = drawableLayer(); if (!layer) return false;
+  const c = { ...S.tools.liquify }, worker = DoodleLiquifyEngine.create(window.__DOODLE_FORCE_COOPERATIVE__ === true);
+  const s = liquify = { id: ++liquifySequence, layer, cfg: c, worker, selection, pointerId: e.pointerId,
+    x: pt.x, y: pt.y, pressure: pressureOf(e, c), tiles: new Map(), alt: e.altKey, lastMove: performance.now(),
+    started: performance.now(), events: 0, publishMs: 0, maxPublishMs: 0, ending: false, wasDirty: S.dirty,
+    info: { backend: worker.backend, mode: c.mode, size: c.size, strength: c.strength, pressureEnabled: c.pStrength,
+      document: [doc.W, doc.H], alphaLock: layer.alphaLock, selection: !!selection } };
+  s.done = new Promise(resolve => { s.resolve = resolve; });
+  s.previewReady = liquifyPreview(s, true).ready;
+  worker.onmessage = ({ data }) => { void liquifyMessage(s, data); };
+  worker.onerror = e => completeLiquify(s, null, e.message || 'Worker failed');
+  worker.postMessage({ type: 'begin', id: s.id, cfg: c, W: doc.W, H: doc.H, x: pt.x, y: pt.y, p: s.pressure,
+    alphaLock: layer.alphaLock, selection: selection?.bbox || null, forceCpu: window.__DOODLE_FORCE_CPU__ === true });
+  rcache = null;
+  const tick = () => worker.postMessage({ type: 'point', id: s.id, x: s.x, y: s.y, p: s.pressure, alt: s.alt, tick: true });
+  if (c.mode !== 'push') {
+    tick();
+    s.timer = setInterval(() => { if (liquify === s && !s.ending && performance.now() - s.lastMove >= 50) tick(); }, 50);
+  }
+  requestOverlayRender(); return true;
+}
+function extendLiquify(x, y, p, alt) {
+  const s = liquify; if (!s || s.ending) return;
+  s.events++; s.worker.postMessage({ type: 'point', id: s.id, x, y, p, alt });
+  s.x = x; s.y = y; s.pressure = p; s.alt = alt; s.lastMove = performance.now();
+}
+function endLiquify() {
+  const s = liquify; if (!s) return Promise.resolve(true);
+  if (!s.ending) {
+    s.ending = true; s.ended = performance.now(); clearInterval(s.timer);
+    s.worker.postMessage({ type: 'end', id: s.id });
+  }
+  return s.done;
 }
 
 /* =========================================================
@@ -2783,6 +2842,7 @@ function showPen(e) {
 }
 
 view.addEventListener('pointerdown', (e) => {
+  if (deferLiquifyInput(e)) return;
   if (stroke || liquify || panning || lasso || zdrag || rdrag || (tf && tf.drag)) return;
   if (!$('#opts').hidden) toggleOpts(false);
   try { view.setPointerCapture(e.pointerId); } catch (err) { /* ponteiro já liberado */ }
@@ -2823,6 +2883,7 @@ view.addEventListener('pointerdown', (e) => {
   if (S.tool === 'brush' || S.tool === 'eraser' || penEraser) beginStroke(e, pt, penEraser || S.tool === 'eraser');
 });
 view.addEventListener('pointermove', (e) => {
+  if (deferLiquifyInput(e)) { const p = toDoc(e); hover.sx = p.sx; hover.sy = p.sy; requestOverlayRender(); return; }
   const bounds = view.getBoundingClientRect(), pt = toDoc(e, bounds);
   hover.inside = true; hover.sx = pt.sx; hover.sy = pt.sy; hover.x = pt.x; hover.y = pt.y;
   if (panning && e.pointerId === panning.id) {
@@ -2858,7 +2919,7 @@ view.addEventListener('pointermove', (e) => {
   }
   if (liquify && e.pointerId === liquify.pointerId) {
     extendLiquify(pt.x, pt.y, pressureOf(e, liquify.cfg), e.altKey);
-    showPen(e); requestRender(); return;
+    showPen(e); requestOverlayRender(); return;
   }
   if (stroke && e.pointerId === stroke.pointerId) {
     const evs = (e.getCoalescedEvents && e.getCoalescedEvents()) || [];
@@ -2872,6 +2933,7 @@ view.addEventListener('pointermove', (e) => {
   if (stroke) requestRender(); else requestOverlayRender();
 });
 function pointerEnd(e) {
+  if (deferLiquifyInput(e)) return;
   if (panning && e.pointerId === panning.id) { panning = null; updateCursor(); }
   if (rdrag && e.pointerId === rdrag.id) { rdrag = null; updateCursor(); }
   if (zdrag && e.pointerId === zdrag.id) {
@@ -2909,7 +2971,7 @@ view.addEventListener('wheel', (e) => {
    Ferramentas e opções
    ========================================================= */
 function setTool(t) {
-  if (liquify) endLiquify();
+  if (liquify) return finishLiquify().then(() => setTool(t));
   if (tf) applyTransform();
   S.tool = t;
   document.querySelectorAll('.tool').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.tool === t)));
@@ -3819,6 +3881,7 @@ window.addEventListener('drop', async (e) => {
   e.preventDefault(); dragDepth = 0; $('#dropHint').hidden = true;
   if (openModal || saving) return;
   const files = [...e.dataTransfer.files]; if (!files.length) return;
+  if (liquify) await finishLiquify();
   const first = new Uint8Array(await files[0].arrayBuffer());
   if (isZip(first) || /\.ora$/i.test(files[0].name)) {
     if (S.dirty && !(await confirmBox(t('Abrir ') + files[0].name + '?', t('As alterações não salvas deste desenho serão perdidas.'), t('Abrir mesmo assim')))) return;
@@ -3837,8 +3900,9 @@ window.addEventListener('paste', async (e) => {
   if (imgs.length) {
     const items = [];
     for (const it of imgs) { const f = it.getAsFile(); if (f) items.push({ bytes: new Uint8Array(await f.arrayBuffer()), name: t('Imagem colada') }); }
+    if (liquify) await finishLiquify();
     importImagesAsLayers(items);
-  } else pasteInternal();
+  } else { if (liquify) await finishLiquify(); pasteInternal(); }
 });
 
 /* =========================================================
@@ -4062,7 +4126,7 @@ function isTyping(e) {
   return t && ((t.tagName === 'INPUT' && !['range', 'checkbox', 'radio', 'color'].includes(t.type)) || t.isContentEditable);
 }
 function runAction(id) {
-  if (liquify) endLiquify();
+  if (liquify) return finishLiquify().then(() => runAction(id));
   if (tf && !TF_SAFE.has(id)) applyTransform();
   const f = RUN[id]; if (f) f();
 }
@@ -4312,7 +4376,7 @@ function updateStatus() {
 }
 
 /* Avisar antes de fechar com alterações não salvas */
-window.addEventListener('beforeunload', (e) => { if (S.dirty && !TAURI) { e.preventDefault(); e.returnValue = ''; } });
+window.addEventListener('beforeunload', (e) => { if ((S.dirty || liquify) && !TAURI) { e.preventDefault(); e.returnValue = ''; } });
 if (TAURI && TAURI.window) {
   try {
     const win = TAURI.window.getCurrentWindow();
@@ -4320,9 +4384,10 @@ if (TAURI && TAURI.window) {
     win.onCloseRequested(async (ev) => {
       if (closing || saving || recovery.busyUI) { ev.preventDefault(); return; }
       if (stroke) endStroke();
-      if (liquify) endLiquify();
+      const waitedForLiquify = !!liquify;
+      if (waitedForLiquify) { ev.preventDefault(); closing = true; await finishLiquify(); closing = false; }
       if (tf) applyTransform();
-      if (!S.dirty) return;
+      if (!S.dirty) { if (waitedForLiquify) await win.destroy(); return; }
       ev.preventDefault();
       closing = true;
       try {
@@ -4369,13 +4434,14 @@ const formatBytes = bytes => (bytes / 1048576).toFixed(1) + ' MB';
 function performanceSnapshot() {
   const sorted = perf.samples.slice().sort((a, b) => a - b);
   return {
-    schema: 1, app: 'Doodle', build: 'performance-preview', version: $('#appVersion').textContent || '0.3.0',
+    schema: 1, app: 'Doodle', build: window.__DOODLE_BUILD__ || { channel: 'performance-preview' }, version: $('#appVersion').textContent || '0.3.0',
     runtime: navigator.userAgent, platform: nativeGraphics?.platform || navigator.platform,
     display: { logical: [stage.clientWidth, stage.clientHeight], pixels: [view.width, view.height], systemDpr: DPR(), displayDpr: displayDpr(), quality: S.performanceMode },
     graphics: nativeGraphics, graphicsStatusUnavailable: graphicsError,
     document: { width: doc.W, height: doc.H, layers: allLayers().length },
     history: { undo: undoStack.length, redo: redoStack.length, bytes: historyBytes(), maxSteps: S.historySteps, maxMiB: S.historyMemory },
     rendering: { sceneFrames: perf.scenes, overlayFrames: perf.overlays, cpuP50ms: sorted.length ? sorted[Math.floor(sorted.length * .5)] : null, cpuP95ms: sorted.length ? sorted[Math.min(sorted.length - 1, Math.floor(sorted.length * .95))] : null, contextLosses: perf.contextLosses, longTasks: perf.longTasks, presentationTest: perf.lastTest },
+    liquify: { active: liquify ? { ...liquify.info, ending: liquify.ending, inputEvents: liquify.events, elapsedMs: performance.now() - liquify.started } : null, lastStroke: lastLiquify },
     recovery: { encoded: recovery.stats.encoded, committed: recovery.stats.committed, failures: recovery.state?.failures || 0, nextAttempt: recovery.state?.nextAttempt || 0 },
   };
 }
@@ -4418,7 +4484,8 @@ function updateGraphicsStatus() {
 }
 async function showPerformance(tab = 'graphics') {
   if (!['graphics', 'history', 'storage', 'diagnostics'].includes(tab)) tab = 'graphics';
-  if (stroke || liquify || saving || recovery.busyUI) return;
+  if (liquify) await finishLiquify();
+  if (stroke || saving || recovery.busyUI) return;
   if (tf) applyTransform();
   preferencesSequence++; closeSettingsMenu(); showModal('#mPerformance');
   const values = { prefProfile: S.performanceMode, prefSteps: S.historySteps, prefHistoryMemory: S.historyMemory, prefCacheMemory: S.cacheMemory, prefRecoveryLimit: S.recoveryLimit, prefRecoveryInterval: S.recoveryInterval, prefVersions: S.recoveryVersions };
@@ -4511,7 +4578,7 @@ if (TAURI && TAURI.core) {
   }).catch((e) => console.warn(e));
 }
 
-window.__doodle = { showPerformance, performanceSnapshot, perf, historyBytes, trimHistory, requestRender, requestOverlayRender, releaseRenderCaches, resizeRenderSurfaces, updateThumb, newDocument, get history() { return { undo: undoStack.length, redo: redoStack.length, bytes: historyBytes() }; }, doc, S, buildOra, loadOra, buildPsd, compositeCanvas, recovery, afterDocChange, undo, redo, runAction, applyLasso, startTransform, applyTransform,
+window.__doodle = { finishLiquify, get liquify() { return liquify; }, showPerformance, performanceSnapshot, perf, historyBytes, trimHistory, requestRender, requestOverlayRender, releaseRenderCaches, resizeRenderSurfaces, updateThumb, newDocument, get history() { return { undo: undoStack.length, redo: redoStack.length, bytes: historyBytes() }; }, doc, S, buildOra, loadOra, buildPsd, compositeCanvas, recovery, afterDocChange, undo, redo, runAction, applyLasso, startTransform, applyTransform,
   get tf() { return tf; }, get selection() { return selection; }, allLayers, flatten, targetLayers, selectOnly, renderLayers, clickRow, moveNodesTo, toDocXY, docToScreen,
   setTfMode, tfUndo, openTfMenu, toNewLayers, invertSelection, get rot() { return S.rot; } };
 void recovery.start();

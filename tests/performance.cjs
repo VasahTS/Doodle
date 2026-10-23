@@ -97,7 +97,7 @@ const fs = require('node:fs/promises');
     await context.close();
 
     // Native preference bridge: selection is persisted, and accurately remains pending restart.
-    const nativeContext=await browser.newContext();
+    const nativeContext=await browser.newContext({locale:'en-US'});
     await nativeContext.addInitScript(() => {
       let requested='auto'; window.nativeWrites=[];
       window.__TAURI__={ core:{invoke:async (command,args)=>{

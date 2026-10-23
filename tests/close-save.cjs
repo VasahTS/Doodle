@@ -120,6 +120,23 @@ const path = require('node:path');
     await request(); assert.equal(await page.locator('#confirmSave').textContent(), 'Save and exit');
     assert.equal(await page.locator('#confirmYes').textContent(), 'Exit without saving');
     await page.locator('#confirmNo').click(); await done();
+    await page.evaluate(() => {
+      const d=__doodle;d.newDocument(512,512,'none');d.S.recoveryInterval=0;d.runAction('tool.liquify');
+      Object.assign(d.S.tools.liquify,{size:500,strength:1,pStrength:false,mode:'push'});
+      const l=d.doc.active;l.ctx.fillStyle='#f54';l.ctx.fillRect(60,100,160,200);l.ctx.fillStyle='#3af';l.ctx.fillRect(220,100,160,200);d.afterDocChange(false);
+      closeTest.hold=false;closeTest.fail=false;closeTest.destination='C:/art/Liquify.ora';closeTest.writes=[];
+      const v=document.querySelector('#view'),b=v.getBoundingClientRect();
+      for(const [type,x] of [['pointerdown',140],['pointermove',380],['pointerup',380]]){const p=d.docToScreen({x,y:240});v.dispatchEvent(new PointerEvent(type,{pointerId:90,pointerType:'pen',pressure:1,button:0,buttons:type==='pointerup'?0:1,clientX:b.left+p.x,clientY:b.top+p.y,bubbles:true}));}
+    });
+    const destroyedBefore = await page.evaluate(() => closeTest.destroyed);
+    await request();assert.equal(await page.evaluate(() => closeTest.event.prevented),true);
+    await page.waitForFunction(() => !document.querySelector('#mConfirm').hidden);
+    const completedPixels = await page.evaluate(() => __doodle.doc.active.canvas.toDataURL());
+    await page.locator('#confirmSave').click();await done();
+    assert.equal(await page.evaluate(() => closeTest.destroyed),destroyedBefore+1);
+    await page.evaluate(async () => {await __doodle.loadOra(Uint8Array.from(closeTest.writes.at(-1).bytes));});
+    assert.equal(await page.evaluate(() => __doodle.doc.active.canvas.toDataURL()),completedPixels);
+    console.log('PASS Closing during pending Liquify waits and saves the complete deformation before destruction');
     assert.deepEqual(errors, []);
     if (process.env.DOODLE_SCREENSHOT) { await request(); await page.screenshot({ path: process.env.DOODLE_SCREENSHOT }); await page.locator('#confirmNo').click(); await done(); }
     console.log('PASS English translation, existing two-choice confirmations and no script errors');
