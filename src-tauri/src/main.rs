@@ -66,14 +66,19 @@ fn main() {
         #[cfg(target_os = "linux")]
         std::env::set_var("WEBKIT_DISABLE_COMPOSITING_MODE", "1");
     }
-    tauri::Builder::default()
+    let builder = tauri::Builder::default()
         .manage(GraphicsState { path, applied, external_override })
         // Janelas nativas de "Abrir" e "Salvar como"
         .plugin(tauri_plugin_dialog::init())
         // Ler e gravar os arquivos .ora e .png
-        .plugin(tauri_plugin_fs::init())
-        // Baixar e instalar atualizações publicadas no GitHub
-        .plugin(tauri_plugin_updater::Builder::new().build())
+        .plugin(tauri_plugin_fs::init());
+    // A instalação de testes é independente e nunca carrega o atualizador estável.
+    let builder = if context.config().identifier == "com.daniel.doodle.performance-test" {
+        builder
+    } else {
+        builder.plugin(tauri_plugin_updater::Builder::new().build())
+    };
+    builder
         // Reabrir o app depois de atualizar
         .plugin(tauri_plugin_process::init())
         .invoke_handler(tauri::generate_handler![arquivo_inicial, graphics_preferences, set_graphics_preference])
