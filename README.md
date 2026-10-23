@@ -1,3 +1,5 @@
+> **Performance test branch:** this branch contains an experimental canvas performance build. See [PERFORMANCE-TESTING.md](PERFORMANCE-TESTING.md) for test steps and known issues. The latest release download below is the stable 0.3.0 build, without these optimizations.
+
 # Doodle
 
 A light sketching app: open it and start drawing. Layers, folders, pen pressure, lasso, free transform and `.ora` files.

@@ -1,5 +1,20 @@
 # Changelog
 
+## [Unreleased]
+
+### Performance
+
+- Draw the cursor, selection outline and transform handles on a separate overlay, keeping document pixels unchanged during hover and selection animation.
+- Cache the static background; use bounded optional layer caches, an opaque scene surface and adaptive preview quality without changing document/export resolution.
+- Update the live brush preview only in damaged regions and store brush/eraser undo data in touched 128 px tiles.
+- Batch pen status updates per animation frame and reuse the pointer bounds within coalesced-event batches.
+- Bound undo and redo by configurable step count and approximate retained pixel memory, including history-only layers and shared masks.
+- Add Settings panels for graphics, memory/history, storage and private local diagnostics, in Portuguese and English.
+- Add automatic and compatibility graphics preferences applied before native WebView startup, with a restart notice and a one-launch `--safe-gpu` option. Browser acceleration remains managed by the browser.
+- Make recovery version retention configurable, add storage tiers and usage, preserve older versions until a successful replacement commits, and back off progressively after failures.
+- Avoid PNG compression when recovery storage is already full, scope native pruning to the current session and index browser recovery sizes without scanning PNG values.
+- Add regression coverage for settings, scene reuse, sparse history, recovery migration and retries. Native build/driver validation remains pending; this development work has not been published.
+
 ## [0.3.0] - 2026-10-22
 
 Implemented and documented by **Codex (OpenAI)** at Daniel's request.

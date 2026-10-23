@@ -1,10 +1,10 @@
-const { chromium } = require('playwright');
+const { launch } = require('./browser.cjs');
 const assert = require('node:assert/strict');
 const { pathToFileURL } = require('node:url');
 const path = require('node:path');
 
 (async () => {
-  const browser = await chromium.launch({ channel: process.env.DOODLE_BROWSER || 'chrome', headless: true });
+  const browser = await launch();
   const context = await browser.newContext({ viewport: { width: 1280, height: 820 }, locale: 'pt-BR' });
   try {
     await context.addInitScript(() => {

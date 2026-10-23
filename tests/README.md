@@ -2,7 +2,17 @@
 
 Install Playwright in a separate tools folder or expose an existing installation through `NODE_PATH`. No build dependencies are added to Doodle.
 
-Run all ten suites with `node tests/run.cjs`. Set `DOODLE_BROWSER=msedge` to run the browser checks in Edge. The release metadata suite only needs Node.js. The PSD suite also needs the external test dependency described below.
+Run all twelve suites with `node tests/run.cjs`. Set `DOODLE_BROWSER=msedge` to run the browser checks in Edge. The release metadata suite only needs Node.js. The PSD suite also needs the external test dependency described below.
+
+For an externally managed Chromium installation, set `DOODLE_CHROMIUM_PATH` to its executable. `DOODLE_BROWSER_ARGS` optionally accepts a JSON array of additional test-only launch arguments. `tests/browser.cjs` centralizes the launcher; no browser dependency is shipped with the app.
+
+# Performance settings and recovery scheduling
+
+`node tests/performance.cjs` verifies that pen hover and selection animation paint zero document frames, economy changes only display resolution, sparse diagonal strokes retain tile history with exact undo/redo, history budgets evict older entries, settings persist, tabs and focus work, diagnostics exclude file names and preserve the save destination, and the native preference UI calls its bridge and reports a restart requirement. The graphics preference bridge is a stub: it does not claim to validate real WebView2 or WebKitGTK flags.
+
+`node tests/performance-recovery.cjs` upgrades a genuine v1 IndexedDB, checks lossless data and metadata-only listing, verifies that full storage stops before PNG encoding and scheduler retries back off without repeated I/O, then tests five-version retention and interrupted publication while lowering retention. Existing `recovery.cjs` separately exercises real temporary native files and broader recovery behavior.
+
+Performance counters describe the exercised code paths, not the native app's FPS. Physical tablet input, native graphics configuration and release builds still require target-machine checks.
 
 # Automatic recovery checks
 

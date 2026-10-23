@@ -154,3 +154,17 @@ Também funciona enviando uma tag `vX.Y.Z` ou rodando o workflow pela aba Action
 - Daniel autorizou explicitamente a compilação e publicação da **0.3.0**, com recuperação automática, painel redimensionável e salvar ao sair. Mudanças futuras continuam locais até nova autorização.
 - Changelog em inglês: [CHANGELOG.md](CHANGELOG.md).
 - Ideias futuras solicitadas pelo Daniel, ainda pendentes: [future-additions/README.md](future-additions/README.md).
+
+
+## Desenvolvimento local — otimização de 23/10/2026
+
+- Trabalho na branch `perf/settings-and-rendering`, baseado em `4b9a5a6`. Não foi enviado ou publicado. O Daniel pediu otimização ampla e controles em Configurações; os relatos incluem Windows e Linux.
+- Leia `docs/performance.md` para os limites, modos gráficos e verificações. A versão de release continua 0.3.0; as mudanças estão em `CHANGELOG.md` → Unreleased.
+- `#view` é opaco e guarda a cena; `#overlay` é transparente e não recebe eventos. `requestRender()` invalida a cena; `requestOverlayRender()` atualiza somente cursor/seleção/alças. Não volte a invalidar a cena por hover ou animação das formigas. Transformação recebe o contexto de overlay explicitamente.
+- A prévia usa `displayDpr()`; as coordenadas e os canvases do documento mantêm resolução original. Configurações de qualidade não podem alterar exportações.
+- Pincel usa `stroke.damage` para atualizar o scratch e `stroke.tiles` para histórico por blocos. Cada entrada de histórico deve declarar `resources` (ImageData/canvases retidos). Grupos de entradas devem propagar recursos dos filhos. Limites incluem desfazer e refazer; máscaras compartilhadas são deduplicadas; camadas removidas são contabilizadas.
+- Caches de baixo/cima são opcionais, alocados sob demanda e liberados ao trocar documento/tamanho/configuração. `updateThumb` ainda incrementa `pixelVersion`: isso permanece obrigatório para invalidar a recuperação.
+- Recuperação IndexedDB v2 mantém `files` e `sizes` em transações conjuntas. Não apague as cópias antigas na migração. O prune inicial preserva até dez versões; somente após o manifesto novo completar aplica a retenção escolhida. Falhas usam `nextAttempt` e espera progressiva; chamadas manuais podem forçar tentativa.
+- Aceleração: backend lê uma preferência restrita a `auto`/`software` antes da janela. Windows usa `--disable-gpu` somente em compatibilidade; Linux desativa composição acelerada somente nesse modo. Nenhuma flag é aplicada por padrão. Preferência não comprova GPU ativa; não use WebGL como prova da aceleração de Canvas 2D.
+- As doze suítes são executadas por `node tests/run.cjs`. Há launcher externo configurável por `DOODLE_CHROMIUM_PATH` e `DOODLE_BROWSER_ARGS`. Nenhuma dependência de teste foi adicionada ao aplicativo. Os testes da ponte nativa usam stubs; não substituem compilação e teste em Windows/Linux.
+- Registro da sessão: `docs/sessions/2026-10-23-performance.md`. Continuar localmente; publicar somente quando solicitado.

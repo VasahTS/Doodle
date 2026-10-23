@@ -1,5 +1,5 @@
 // Run with Node.js and Playwright available through NODE_PATH.
-const { chromium } = require('playwright');
+const { launch } = require('./browser.cjs');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
@@ -8,7 +8,7 @@ const { pathToFileURL } = require('node:url');
 (async () => {
   const html = fs.readFileSync(path.join(__dirname, '../src/index.html'), 'utf8');
   new Function(html.match(/<script>([\s\S]*?)<\/script>/)[1]);
-  const browser = await chromium.launch({ channel: process.env.DOODLE_BROWSER || 'chrome', headless: true });
+  const browser = await launch();
   try {
     const page = await browser.newPage({ viewport: { width: 1366, height: 768 } });
     const errors = [];
