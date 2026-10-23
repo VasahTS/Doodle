@@ -3,3 +3,6 @@ src-tauri/gen/
 testsrc/
 .DS_Store
 Thumbs.db
+
+# Local development instructions
+[Aa][Gg][Ee][Nn][Tt][Ss].[Mm][Dd]
