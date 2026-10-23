@@ -182,7 +182,8 @@ input[type=color].hidden-color { position: absolute; width: 0; height: 0; opacit
 
 /* ---------- Tela ---------- */
 #stage { grid-area: stage; position: relative; overflow: hidden; background: var(--work); touch-action: none; }
-#view { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
+#view, #overlay { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
+#overlay { pointer-events: none; }
 #stage.c-none #view { cursor: none; }
 #stage.c-cross #view { cursor: crosshair; }
 /* laço: o próprio ícone do laço, com a ponta da cordinha marcando onde a seleção começa */
@@ -323,6 +324,21 @@ body.resizing-layers, body.resizing-layers * { cursor: col-resize !important; }
 .recovery-item .actions { grid-column: 1 / -1; }
 #recoveryStatus { overflow-wrap: anywhere; user-select: text; -webkit-user-select: text; }
 
+
+#mPerformance .modal { width: min(720px, 100%); max-height: 100%; display: flex; flex-direction: column; overflow: hidden; }
+#mPerformance .modal > h3, #mPerformance .modal > .actions, .pref-tabs { flex: none; }
+#mPerformance [role="tabpanel"] { min-height: 0; overflow-y: auto; }
+.pref-tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--line); padding-bottom: 8px; margin-bottom: 16px; overflow-x: auto; }
+.pref-tabs button { height: 34px; padding: 0 12px; border: 0; border-radius: 6px; background: transparent; cursor: pointer; flex: none; }
+.pref-tabs button[aria-selected="true"] { background: var(--sel); color: var(--accent); }
+.pref-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(135px, 210px); gap: 12px; align-items: start; padding: 12px 0; border-bottom: 1px solid var(--line); }
+.pref-row label { display: grid; gap: 5px; font-weight: 560; }
+.pref-row label .hint { font-weight: normal; }
+.pref-row select, .pref-row input { width: 100%; min-height: 34px; padding: 5px 8px; border: 1px solid var(--line); border-radius: 6px; background: var(--panel); color: var(--fg); }
+.pref-readout { border-radius: 7px; background: var(--panel); padding: 12px; margin: 12px 0; white-space: pre-wrap; overflow-wrap: anywhere; font: 12px/1.65 var(--num); user-select: text; }
+.pref-tabs button:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+@media (max-width: 550px) { .pref-row { grid-template-columns: 1fr; gap: 8px; } .pref-tabs button { padding: 0 8px; } }
+
 /* editor de atalhos */
 #mKeys .modal { width: min(560px, 100%); display: flex; flex-direction: column; max-height: 100%; padding-bottom: 14px; }
 #keyList { overflow-y: auto; min-height: 0; margin: 0 -8px; padding: 0 8px; }
@@ -396,6 +412,11 @@ body.resizing-layers, body.resizing-layers * { cursor: col-resize !important; }
     <button class="ctx-item" id="btnKeys" role="menuitem" data-act="app.keys"><span class="ic"><svg class="i s"><use href="#i-help"/></svg></span>Atalhos<span class="kb"></span></button>
     <button class="ctx-item" id="btnRecovery" role="menuitem"><span class="ic"><svg class="i s"><use href="#i-save"/></svg></span>Recuperação automática<span class="kb"></span></button>
     <div class="ctx-sep"></div>
+    <button class="ctx-item" role="menuitem" data-performance="graphics"><span class="ic"><svg class="i s"><use href="#i-sliders"/></svg></span>Desempenho e gráficos</button>
+    <button class="ctx-item" role="menuitem" data-performance="history"><span class="ic"><svg class="i s"><use href="#i-sliders"/></svg></span>Memória e histórico</button>
+    <button class="ctx-item" role="menuitem" data-performance="storage"><span class="ic"><svg class="i s"><use href="#i-sliders"/></svg></span>Armazenamento</button>
+    <button class="ctx-item" role="menuitem" data-performance="diagnostics"><span class="ic"><svg class="i s"><use href="#i-sliders"/></svg></span>Diagnóstico</button>
+    <div class="ctx-sep"></div>
     <div class="info">Idioma</div>
     <button class="ctx-item" role="menuitemradio" data-lang="pt"><span class="ck"></span>Português (Brasil)</button>
     <button class="ctx-item" role="menuitemradio" data-lang="en"><span class="ck"></span>English (US)</button>
@@ -407,6 +428,7 @@ body.resizing-layers, body.resizing-layers * { cursor: col-resize !important; }
   <main id="stage" class="c-none">
     <div id="recoveryNotice" hidden role="status"><span>Há desenhos com cópias de recuperação.</span><button class="pbtn" id="recoveryShow">Ver cópias</button><button class="pbtn" id="recoveryLater">Depois</button></div>
     <canvas id="view"></canvas>
+    <canvas id="overlay" aria-hidden="true"></canvas>
     <div id="mirrorBadge" hidden><svg class="i s"><use href="#i-compass"/></svg><span></span></div>
     <div id="dropHint" hidden>Solte para abrir</div>
     <div class="floatbar" id="selBar" hidden role="toolbar" aria-label="Opções da seleção">
@@ -589,13 +611,32 @@ body.resizing-layers, body.resizing-layers * { cursor: col-resize !important; }
     <p>Cópias separadas do arquivo original. Recupera até a última cópia concluída.</p>
     <div class="recovery-controls">
       <label><span>Intervalo</span><select id="recoveryInterval"><option value="0">Desativada</option><option value="15">15 s</option><option value="30">30 s</option><option value="60">1 min</option><option value="120">2 min</option></select></label>
-      <label><span>Espaço máximo</span><select id="recoveryLimit"><option value="256">256 MB</option><option value="512">512 MB</option><option value="1024">1 GB</option><option value="2048">2 GB</option></select></label>
+      <label><span>Espaço máximo</span><select id="recoveryLimit"><option value="128">128 MB</option><option value="256">256 MB</option><option value="512">512 MB</option><option value="1024">1 GB</option><option value="2048">2 GB</option><option value="4096">4 GB</option><option value="8192">8 GB</option></select></label>
     </div>
     <p class="hint" id="recoveryStatus" role="status"></p>
     <div id="recoveryList"></div>
     <div class="actions"><button class="pbtn" data-close>Fechar</button></div>
   </div>
 </div>
+
+<div class="modal-back" id="mPerformance" hidden>
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="performanceTitle">
+    <h3 id="performanceTitle">Desempenho e armazenamento</h3>
+    <div class="pref-tabs" role="tablist" aria-label="Preferências de desempenho">
+<button role="tab" id="tab-graphics" data-pref-tab="graphics" aria-controls="panel-graphics" aria-selected="false" tabindex="-1">Gráficos</button>
+<button role="tab" id="tab-history" data-pref-tab="history" aria-controls="panel-history" aria-selected="false" tabindex="-1">Histórico</button>
+<button role="tab" id="tab-storage" data-pref-tab="storage" aria-controls="panel-storage" aria-selected="false" tabindex="-1">Armazenamento</button>
+<button role="tab" id="tab-diagnostics" data-pref-tab="diagnostics" aria-controls="panel-diagnostics" aria-selected="false" tabindex="-1">Diagnóstico</button>
+</div>
+<section id="panel-graphics" role="tabpanel" aria-labelledby="tab-graphics"><div class="pref-row"><label for="prefProfile"><span>Qualidade de exibição</span><span class="hint">Afeta somente a prévia. Os pixels do desenho e os arquivos exportados mantêm a resolução original.</span></label><select id="prefProfile"><option value="auto">Automática (recomendado)</option><option value="economy">Econômica</option><option value="balanced">Equilibrada</option><option value="quality">Alta qualidade</option></select></div>
+<div class="pref-row"><label for="prefHardware"><span>Aceleração de hardware</span><span class="hint">Automática permite usar a GPU. Use compatibilidade para investigar falhas gráficas.</span></label><select id="prefHardware"><option value="auto">Automática (GPU)</option><option value="software">Compatibilidade</option></select></div>
+<p class="hint" id="graphicsStatus" role="status"></p><p class="hint">A qualidade automática reduz a resolução da prévia se detectar pintura lenta. Alta qualidade acompanha a escala do monitor e mantém a sombra da folha.</p></section><section id="panel-history" role="tabpanel" aria-labelledby="tab-history" hidden><div class="pref-row"><label for="prefSteps"><span>Passos de desfazer (Ctrl+Z)</span><span class="hint">O limite inclui desfazer e refazer. As ações mais antigas são descartadas ao atingir um dos limites.</span></label><input id="prefSteps" type="number" min="1" max="500" step="1" inputmode="numeric"></div>
+<div class="pref-row"><label for="prefHistoryMemory"><span>Memória do histórico</span><span class="hint">Uma ação muito grande pode exceder o limite e ficar sem desfazer. O desenho atual é preservado.</span></label><select id="prefHistoryMemory"><option value="32">32 MB</option><option value="64">64 MB</option><option value="128">128 MB</option><option value="256">256 MB</option><option value="512">512 MB</option><option value="1024">1 GB</option></select></div>
+<div class="pref-row"><label for="prefCacheMemory"><span>Memória dos caches de exibição</span><span class="hint">Limita os caches opcionais. Camadas, ferramentas e o desenho atual também precisam de memória.</span></label><select id="prefCacheMemory"><option value="0">Sem cache</option><option value="32">32 MB</option><option value="64">64 MB</option><option value="128">128 MB</option><option value="256">256 MB</option><option value="512">512 MB</option></select></div>
+<div class="pref-readout" id="historyUsage"></div><div class="actions"><button class="pbtn" id="prefReleaseCaches">Liberar caches</button><button class="pbtn" id="prefClearHistory">Limpar histórico</button></div></section><section id="panel-storage" role="tabpanel" aria-labelledby="tab-storage" hidden><div class="pref-row"><label for="prefRecoveryLimit"><span>Espaço das cópias automáticas</span><span class="hint">Limite total no disco para cópias de recuperação. Seus arquivos .ora e exportações ficam separados.</span></label><select id="prefRecoveryLimit"><option value="128">128 MB</option><option value="256">256 MB</option><option value="512">512 MB</option><option value="1024">1 GB</option><option value="2048">2 GB</option><option value="4096">4 GB</option><option value="8192">8 GB</option></select></div>
+<div class="pref-row"><label for="prefRecoveryInterval"><span>Intervalo das cópias</span><span class="hint">O aplicativo espera o fim dos traços. Falhas persistentes usam intervalos progressivos entre tentativas.</span></label><select id="prefRecoveryInterval"><option value="0">Desativada</option><option value="15">15 s</option><option value="30">30 s</option><option value="60">1 min</option><option value="120">2 min</option></select></div>
+<div class="pref-row"><label for="prefVersions"><span>Versões por desenho</span><span class="hint">De 1 a 10. Reduzir este valor remove as versões mais antigas deste desenho na próxima cópia bem-sucedida.</span></label><input id="prefVersions" type="number" min="1" max="10" step="1" inputmode="numeric"></div>
+<div class="pref-readout" id="storageUsage" role="status"></div><p class="hint">Cópias de outros desenhos só são descartadas quando você escolher. O limite nunca apaga seus arquivos originais.</p><div class="actions"><button class="pbtn" id="prefManageRecovery">Gerenciar cópias</button><button class="pbtn" id="prefRetryRecovery">Tentar novamente</button></div></section><section id="panel-diagnostics" role="tabpanel" aria-labelledby="tab-diagnostics" hidden><p class="hint">Medições locais para investigar lentidão. O relatório não inclui desenhos, nomes de arquivos ou caminhos pessoais.</p><div class="pref-readout" id="diagnosticStatus" role="status"></div><p class="hint">O tempo de pintura mede trabalho da CPU; não mede sozinho o tempo de apresentação da GPU.</p><div class="actions"><button class="pbtn" id="prefMeasure">Medir fluidez (3 s)</button><button class="pbtn" id="prefExportDiagnostic">Salvar diagnóstico</button></div></section><div class="actions"><button class="pbtn primary" data-close>Fechar</button></div></div></div>
 
 <div class="modal-back" id="mKeys" hidden>
   <div class="modal" role="dialog" aria-modal="true" aria-labelledby="mKeysTitle">
@@ -667,6 +708,8 @@ body.resizing-layers, body.resizing-layers * { cursor: col-resize !important; }
   <symbol id="i-trash" viewBox="0 0 24 24"><path d="M4 6.5h16"/><path d="M9 6.5V4.5h6v2"/><path d="M6 6.5l1 13a1.5 1.5 0 001.5 1.5h7a1.5 1.5 0 001.5-1.5l1-13"/><path d="M10 10.5v6M14 10.5v6"/></symbol>
 </svg>
 
+<script src="build-info.js"></script>
+<script src="liquify-engine.js"></script>
 <script>
 (() => {
 'use strict';
@@ -675,6 +718,75 @@ body.resizing-layers, body.resizing-layers * { cursor: col-resize !important; }
    Idiomas: pt-BR (o texto original) e en-US
    ========================================================= */
 const EN = {
+  "Compatibilidade desativa a composição acelerada no Linux.": "Compatibility disables accelerated compositing on Linux.",
+  "Compatibilidade desativa a aceleração gráfica do WebView no Windows.": "Compatibility disables WebView graphics acceleration on Windows.",
+  "Desempenho e gráficos": "Performance and graphics",
+  "Memória e histórico": "Memory and history",
+  "Armazenamento": "Storage",
+  "Diagnóstico": "Diagnostics",
+  "Desempenho e armazenamento": "Performance and storage",
+  "Preferências de desempenho": "Performance preferences",
+  "Gráficos": "Graphics",
+  "Histórico": "History",
+  "Qualidade de exibição": "Display quality",
+  "Afeta somente a prévia. Os pixels do desenho e os arquivos exportados mantêm a resolução original.": "Only affects the preview. Drawing pixels and exported files retain their original resolution.",
+  "Automática (recomendado)": "Automatic (recommended)",
+  "Econômica": "Economy",
+  "Equilibrada": "Balanced",
+  "Alta qualidade": "High quality",
+  "Aceleração de hardware": "Hardware acceleration",
+  "Automática permite usar a GPU. Use compatibilidade para investigar falhas gráficas.": "Automatic allows GPU use. Use compatibility to investigate graphics issues.",
+  "Automática (GPU)": "Automatic (GPU)",
+  "Compatibilidade": "Compatibility",
+  "A qualidade automática reduz a resolução da prévia se detectar pintura lenta. Alta qualidade acompanha a escala do monitor e mantém a sombra da folha.": "Automatic quality lowers preview resolution if painting is slow. High quality follows display scaling and keeps the page shadow.",
+  "Passos de desfazer (Ctrl+Z)": "Undo steps (Ctrl+Z)",
+  "O limite inclui desfazer e refazer. As ações mais antigas são descartadas ao atingir um dos limites.": "The limit includes undo and redo. Oldest actions are discarded when either limit is reached.",
+  "Memória do histórico": "History memory",
+  "Uma ação muito grande pode exceder o limite e ficar sem desfazer. O desenho atual é preservado.": "A very large action may exceed the limit and become unavailable for undo. The current drawing is preserved.",
+  "Memória dos caches de exibição": "Display cache memory",
+  "Limita os caches opcionais. Camadas, ferramentas e o desenho atual também precisam de memória.": "Limits optional caches. Layers, tools and the current drawing also need memory.",
+  "Sem cache": "No cache",
+  "Liberar caches": "Release caches",
+  "Limpar histórico": "Clear history",
+  "Espaço das cópias automáticas": "Automatic backup storage",
+  "Limite total no disco para cópias de recuperação. Seus arquivos .ora e exportações ficam separados.": "Total disk limit for recovery copies. Your .ora files and exports are separate.",
+  "Intervalo das cópias": "Backup interval",
+  "O aplicativo espera o fim dos traços. Falhas persistentes usam intervalos progressivos entre tentativas.": "The app waits for strokes to finish. Persistent failures use progressively longer retry intervals.",
+  "Versões por desenho": "Versions per drawing",
+  "De 1 a 10. Reduzir este valor remove as versões mais antigas deste desenho na próxima cópia bem-sucedida.": "From 1 to 10. Lowering this value removes this drawing’s oldest versions after the next successful backup.",
+  "Cópias de outros desenhos só são descartadas quando você escolher. O limite nunca apaga seus arquivos originais.": "Copies of other drawings are discarded only when you choose. The limit never deletes your original files.",
+  "Gerenciar cópias": "Manage copies",
+  "Tentar novamente": "Retry",
+  "Medições locais para investigar lentidão. O relatório não inclui desenhos, nomes de arquivos ou caminhos pessoais.": "Local measurements to investigate slowdowns. The report excludes drawings, file names and personal paths.",
+  "O tempo de pintura mede trabalho da CPU; não mede sozinho o tempo de apresentação da GPU.": "Paint time measures CPU work; it does not measure GPU presentation time on its own.",
+  "Medir fluidez (3 s)": "Measure responsiveness (3 s)",
+  "Não foi possível concluir o Liquify. A passada foi revertida.": "Could not finish Liquify. The stroke was reverted.",
+  "Salvar diagnóstico": "Save diagnostics",
+  "Desfazer: ": "Undo: ",
+  "Refazer: ": "Redo: ",
+  "Memória retida (estimada): ": "Estimated retained memory: ",
+  "Prévia: ": "Preview: ",
+  "Pinturas do documento: ": "Document paints: ",
+  "Sobreposições: ": "Overlays: ",
+  "Pintura CPU (mediana / p95): ": "CPU paint (median / p95): ",
+  "Perdas de contexto: ": "Context losses: ",
+  "Tarefas longas: ": "Long tasks: ",
+  "Intervalo entre quadros (mediana / p95): ": "Frame interval (median / p95): ",
+  "Calculando espaço…": "Calculating storage…",
+  " desenhos com cópias": " drawings with backups",
+  "Cota disponível neste navegador: ": "Available browser quota: ",
+  "Não foi possível consultar o espaço.": "Could not check storage usage.",
+  "Modo desta sessão: ": "Current session mode: ",
+  "A mudança entra em vigor ao fechar e abrir o aplicativo.": "The change takes effect after closing and reopening the app.",
+  "Há configurações gráficas externas ao aplicativo.": "External graphics settings are present.",
+  "Não foi possível consultar o modo gráfico do aplicativo.": "Could not query the app graphics mode.",
+  "A aceleração é gerenciada pelo navegador nesta plataforma.": "Acceleration is managed by the browser on this platform.",
+  "Não foi possível salvar o modo gráfico.": "Could not save graphics mode.",
+  "Caches liberados.": "Caches released.",
+  "Limpar histórico?": "Clear history?",
+  "Os passos de desfazer e refazer serão removidos. O desenho atual será mantido.": "Undo and redo steps will be removed. The current drawing will be kept.",
+  "Não foi possível salvar o diagnóstico.": "Could not save diagnostics.",
+
   'Exportar PSD': 'Export PSD', 'Documento Photoshop (.psd)': 'Photoshop document (.psd)', 'PSD exportado: ': 'PSD exported: ',
   'Este desenho excede os limites do formato PSD.': 'This drawing exceeds the PSD format limits.',
   'Configurações': 'Settings',
@@ -855,6 +967,13 @@ const $ = (s) => document.querySelector(s);
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const DPR = () => window.devicePixelRatio || 1;
 const TAURI = window.__TAURI__ || null;
+// The global updater API can exist even when its native plugin is not registered.
+// Resolve the installed identity before enabling any update request.
+const updatesAllowed = TAURI?.updater
+  ? (TAURI.app?.getIdentifier
+      ? Promise.resolve(TAURI.app.getIdentifier()).then(id => id !== 'com.daniel.doodle.performance-test').catch(() => false)
+      : Promise.resolve(true))
+  : Promise.resolve(false);
 const IN_PREVIEW = !TAURI && (() => { try { return window.self !== window.top; } catch (e) { return true; } })();
 const REDUCED_MOTION = matchMedia('(prefers-reduced-motion: reduce)');
 
@@ -910,6 +1029,7 @@ const S = Object.assign({
   tool: 'brush',
   color: '#1f2430', color2: '#ffffff',
   tolerance: 40, sampleAll: true, layersPinned: true, layersWidth: 280, lassoMode: 'replace', recoveryInterval: 30, recoveryLimit: 512,
+  performanceMode: 'auto', historySteps: 50, historyMemory: 256, cacheMemory: 128, recoveryVersions: 3,
 }, SAVED, {
   zoom: 1, rot: 0, panX: 0, panY: 0, flip: false,
   fileName: 'Sem título', filePath: null, fileHandle: null, dirty: false,
@@ -920,7 +1040,12 @@ for (const k in DEFAULT_TOOLS) S.tools[k] = Object.assign({}, DEFAULT_TOOLS[k], 
 if (!['replace', 'add', 'sub'].includes(S.lassoMode)) S.lassoMode = 'replace';
 S.layersWidth = Number.isFinite(S.layersWidth) ? clamp(S.layersWidth, 240, 640) : 280;
 if (![0, 15, 30, 60, 120].includes(S.recoveryInterval)) S.recoveryInterval = 30;
-if (![256, 512, 1024, 2048].includes(S.recoveryLimit)) S.recoveryLimit = 512;
+if (![128, 256, 512, 1024, 2048, 4096, 8192].includes(S.recoveryLimit)) S.recoveryLimit = 512;
+if (!['auto', 'economy', 'balanced', 'quality'].includes(S.performanceMode)) S.performanceMode = 'auto';
+S.historySteps = Number.isInteger(S.historySteps) ? clamp(S.historySteps, 1, 500) : 50;
+if (![32, 64, 128, 256, 512, 1024].includes(S.historyMemory)) S.historyMemory = 256;
+if (![0, 32, 64, 128, 256, 512].includes(S.cacheMemory)) S.cacheMemory = 128;
+S.recoveryVersions = Number.isInteger(S.recoveryVersions) ? clamp(S.recoveryVersions, 1, 10) : 3;
 function cfg(t = S.tool) { return S.tools[t] || S.tools.brush; }
 let saveTimer = 0;
 function saveSettingsSoon() {
@@ -929,6 +1054,8 @@ function saveSettingsSoon() {
     tool: S.tool === 'pan' || S.tool === 'picker' ? 'brush' : S.tool, color: S.color, color2: S.color2,
     tools: S.tools, tolerance: S.tolerance, sampleAll: S.sampleAll, layersPinned: S.layersPinned, layersWidth: S.layersWidth, lassoMode: S.lassoMode, lang: LANG,
     recoveryInterval: S.recoveryInterval, recoveryLimit: S.recoveryLimit,
+    performanceMode: S.performanceMode, historySteps: S.historySteps, historyMemory: S.historyMemory,
+    cacheMemory: S.cacheMemory, recoveryVersions: S.recoveryVersions,
   }), 300);
 }
 
@@ -1003,14 +1130,17 @@ function nextName(prefix) {
 function selectOnly(n) { doc.sel = new Set([n]); doc.active = n; }
 
 function setupDoc(W, H) {
+  cancelLiquify();
   recovery.newDocument();
   doc.W = W; doc.H = H;
   strokeCv = mkCanvas(W, H); strokeCtx = strokeCv.getContext('2d');
   scratchCv = mkCanvas(W, H); scratchCtx = scratchCv.getContext('2d');
   maskedCv = mkCanvas(W, H); maskedCtx = maskedCv.getContext('2d');
-  belowCv = mkCanvas(W, H); belowCtx = belowCv.getContext('2d');
-  aboveCv = mkCanvas(W, H); aboveCtx = aboveCv.getContext('2d');
+  belowCv = mkCanvas(1, 1); belowCtx = belowCv.getContext('2d');
+  aboveCv = mkCanvas(1, 1); aboveCtx = aboveCv.getContext('2d');
   undoStack = []; redoStack = [];
+  thumbQueue.clear(); lastClicked = null;
+  releaseRenderCaches();
   doc.root = makeGroup('root');
   selection = null; tf = null; rcache = null;
 }
@@ -1048,24 +1178,44 @@ function setDirty(v) {
 /* =========================================================
    Histórico (desfazer / refazer)
    ========================================================= */
-const HISTORY_MAX = 50;
-function pushHistory(entry) {
-  undoStack.push(entry);
-  if (undoStack.length > HISTORY_MAX) undoStack.shift();
-  redoStack.length = 0;
-  setDirty(true);
+function historyResources(struct) {
+  return struct.props.filter(p => p[0].type === 'layer').map(p => p[0].canvas);
+}
+function historyBytes() {
+  const live = new Set(allLayers().map(l => l.canvas)), seen = new Set();
+  let bytes = 0;
+  for (const e of [...undoStack, ...redoStack]) {
+    bytes += 256;
+    for (const r of e.resources || []) {
+      if (!r || seen.has(r) || live.has(r)) continue;
+      seen.add(r); bytes += r.data ? r.data.byteLength : r.width * r.height * 4;
+    }
+  }
+  return bytes;
+}
+function trimHistory() {
+  const limit = S.historyMemory * 1024 * 1024;
+  while (undoStack.length + redoStack.length > S.historySteps || historyBytes() > limit) {
+    if (undoStack.length) undoStack.shift();
+    else if (redoStack.length) redoStack.shift();
+    else break;
+  }
   updateHistoryButtons();
+}
+function pushHistory(entry) {
+  undoStack.push(entry); redoStack.length = 0;
+  trimHistory(); setDirty(true);
 }
 function undo() {
   if (stroke || liquify) return;
   if (tf) { tfUndo(); return; }
   const e = undoStack.pop(); if (!e) return;
-  e.undo(); redoStack.push(e); afterHistory(e);
+  e.undo(); redoStack.push(e); trimHistory(); afterHistory(e);
 }
 function redo() {
   if (stroke || liquify || tf) return;
   const e = redoStack.pop(); if (!e) return;
-  e.redo(); undoStack.push(e); afterHistory(e);
+  e.redo(); undoStack.push(e); trimHistory(); afterHistory(e);
 }
 function afterHistory(e) {
   if (!doc.active || !doc.active.parent) { const ls = allLayers(); selectOnly(ls[ls.length - 1]); }
@@ -1077,10 +1227,8 @@ function setSelection(next) {
   const before = selection;
   if (before === next) return;
   selection = next;
-  undoStack.push({ selOnly: true, undo() { selection = before; }, redo() { selection = next; } });
-  if (undoStack.length > HISTORY_MAX) undoStack.shift();
-  redoStack.length = 0;
-  updateHistoryButtons(); requestRender();
+  undoStack.push({ selOnly: true, resources: [before?.mask, next?.mask], undo() { selection = before; }, redo() { selection = next; } });
+  redoStack.length = 0; trimHistory(); requestOverlayRender();
 }
 function cloneSelection(src) {
   const ns = makeSelection();
@@ -1115,7 +1263,7 @@ function act(fn, pix) {
   const sa = snapStruct();
   const pa = specs.map((p) => p.layer.ctx.getImageData(p.rect.x, p.rect.y, p.rect.w, p.rect.h));
   const put = (arr) => specs.forEach((p, i) => { p.layer.ctx.putImageData(arr[i], p.rect.x, p.rect.y); updateThumb(p.layer); });
-  pushHistory({ undo() { restoreStruct(sb); put(pb); }, redo() { restoreStruct(sa); put(pa); } });
+  pushHistory({ resources: [...pb, ...pa, ...historyResources(sb), ...historyResources(sa)], undo() { restoreStruct(sb); put(pb); }, redo() { restoreStruct(sa); put(pa); } });
   specs.forEach((p) => updateThumb(p.layer));
   refreshAll();
   return true;
@@ -1123,6 +1271,7 @@ function act(fn, pix) {
 function pixelEntry(layer, rect, before) {
   const after = layer.ctx.getImageData(rect.x, rect.y, rect.w, rect.h);
   return {
+    resources: [before, after],
     undo() { layer.ctx.putImageData(before, rect.x, rect.y); updateThumb(layer); },
     redo() { layer.ctx.putImageData(after, rect.x, rect.y); updateThumb(layer); },
   };
@@ -1241,6 +1390,7 @@ function mergeSelected() {
 }
 // Trava de pixels: o pincel e o balde só pintam onde a camada já tem desenho
 function setAlphaLock(ls, on) {
+  if (liquify) return finishLiquify().then(() => setAlphaLock(ls, on));
   if (!ls.length) return;
   act(() => { ls.forEach((l) => { l.alphaLock = on; }); });
   toast(on ? (ls.length === 1 ? t('Pixels transparentes de "') + ls[0].name + t('" travados: o pincel não vaza para fora do desenho.') : t('Pixels travados em ') + ls.length + t(' camadas.'))
@@ -1325,6 +1475,7 @@ function dropZone(li, node, e) {
   return y < 0.5 ? 'above' : 'below';
 }
 function clickRow(node, e) {
+  if (liquify) return finishLiquify().then(() => clickRow(node, e));
   if (e.ctrlKey || e.metaKey) {
     if (doc.sel.has(node) && doc.sel.size > 1) {
       doc.sel.delete(node);
@@ -1432,7 +1583,10 @@ layerOpacity.addEventListener('change', () => {
 /* =========================================================
    Vista: zoom, mover, espelhar
    ========================================================= */
-const stage = $('#stage'), view = $('#view'), vctx = view.getContext('2d');
+const stage = $('#stage'), view = $('#view'), overlay = $('#overlay');
+const vctx = view.getContext('2d', { alpha: false }), octx = overlay.getContext('2d');
+const perf = { scenes: 0, overlays: 0, samples: [], slow: 0, contextLosses: 0, longTasks: 0, autoScale: 2, lastTest: null };
+let backgroundCv = null, backgroundKey = '', previousCursor = null, previousDecorations = false;
 let workColor = '#c7cbd5';
 function readThemeColors() { workColor = getComputedStyle(document.documentElement).getPropertyValue('--work').trim() || workColor; requestRender(); }
 matchMedia('(prefers-color-scheme: dark)').addEventListener('change', readThemeColors);
@@ -1446,13 +1600,25 @@ const checker = (() => {
 })();
 
 let firstSize = true;
-new ResizeObserver(() => {
-  const r = DPR();
-  view.width = Math.max(1, Math.round(stage.clientWidth * r));
-  view.height = Math.max(1, Math.round(stage.clientHeight * r));
+function displayDpr() {
+  const cap = { economy: 1, balanced: 1.5, quality: 3, auto: perf.autoScale }[S.performanceMode];
+  return Math.min(DPR(), cap, Math.sqrt(16e6 / Math.max(1, stage.clientWidth * stage.clientHeight)));
+}
+function resizeRenderSurfaces() {
+  const r = displayDpr(), w = Math.max(1, Math.round(stage.clientWidth * r)), h = Math.max(1, Math.round(stage.clientHeight * r));
+  let resized = false;
+  for (const c of [view, overlay]) if (c.width !== w || c.height !== h) { c.width = w; c.height = h; resized = true; }
+  if (resized) releaseRenderCaches();
+  backgroundKey = ''; previousCursor = null; previousDecorations = true;
   if (firstSize && stage.clientWidth > 0) { firstSize = false; fitView(false); }
   requestRender();
-}).observe(stage);
+}
+new ResizeObserver(resizeRenderSurfaces).observe(stage);
+function releaseRenderCaches() {
+  rcache = null; backgroundKey = ''; backgroundCv = null;
+  for (const c of [belowCv, aboveCv, clipCv]) if (c) { c.width = 1; c.height = 1; }
+  clipCv = clipCtx = null;
+}
 
 // Matriz da vista (girar · espelhar · zoom · mover): tela = [a c e; b d f] · desenho
 function viewM() {
@@ -1536,10 +1702,14 @@ function updateViewBadge() {
 /* =========================================================
    Desenho na tela
    ========================================================= */
-let renderQueued = false;
-function requestRender() { if (!renderQueued) { renderQueued = true; requestAnimationFrame(render); } }
+let renderQueued = false, sceneDirty = true;
+function requestOverlayRender() { if (!renderQueued) { renderQueued = true; requestAnimationFrame(render); } }
+function requestRender() { sceneDirty = true; requestOverlayRender(); }
 let rcache = null;   // camadas de baixo/de cima prontas, para desenhar rápido com muitas camadas
 function buildCache(targets) {
+  // Two document-sized surfaces are optional, not an unbounded allocation.
+  if ((doc.W * doc.H * 8 + view.width * view.height * 4) > S.cacheMemory * 1024 * 1024) { rcache = null; return; }
+  for (const c of [belowCv, aboveCv]) if (c.width !== doc.W || c.height !== doc.H) { c.width = doc.W; c.height = doc.H; }
   const flat = flatten();
   let first = -1, last = -1;
   flat.forEach((f, i) => { if (itemHas(f, targets)) { if (first < 0) first = i; last = i; } });
@@ -1554,6 +1724,11 @@ function buildCache(targets) {
 function paintLayer(ctx, l, alpha, op, live, pad) {
   ctx.globalAlpha = alpha; ctx.globalCompositeOperation = op;
   if (live && stroke && l === stroke.layer) { composeScratch(l); ctx.globalAlpha = alpha; ctx.globalCompositeOperation = op; ctx.drawImage(scratchCv, 0, 0); }
+  else if (live && liquify && l === liquify.layer) {
+    const p = liquifyPreview(liquify);
+    if (p.pending) ctx.drawImage(l.canvas, 0, 0);
+    else ctx.drawImage(p.canvas, p.rect.x, p.rect.y, p.rect.w, p.rect.h);
+  }
   else ctx.drawImage(l.canvas, 0, 0);
   if (live && tf) {
     const t = tf.targets.find((x) => x.layer === l);
@@ -1576,20 +1751,25 @@ function drawItems(ctx, items, live, pad = 0.5, width = doc.W, height = doc.H) {
   }
   ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over';
 }
-function strokeSource() {
+function strokeSource(rect) {
   if (!selection) return strokeCv;
-  maskedCtx.globalCompositeOperation = 'copy'; maskedCtx.drawImage(strokeCv, 0, 0);
-  maskedCtx.globalCompositeOperation = 'destination-in'; maskedCtx.drawImage(selection.mask, 0, 0);
-  maskedCtx.globalCompositeOperation = 'source-over';
-  return maskedCv;
+  const { x, y, w, h } = rect;
+  maskedCtx.save(); maskedCtx.beginPath(); maskedCtx.rect(x, y, w, h); maskedCtx.clip();
+  maskedCtx.globalAlpha = 1; maskedCtx.globalCompositeOperation = 'source-over';
+  maskedCtx.clearRect(x, y, w, h); maskedCtx.drawImage(strokeCv, x, y, w, h, x, y, w, h);
+  maskedCtx.globalCompositeOperation = 'destination-in'; maskedCtx.drawImage(selection.mask, x, y, w, h, x, y, w, h);
+  maskedCtx.restore(); return maskedCv;
 }
 function composeScratch(l) {
-  scratchCtx.globalCompositeOperation = 'copy'; scratchCtx.globalAlpha = 1;
-  scratchCtx.drawImage(l.canvas, 0, 0);
+  const rect = rectClamp(stroke.damage || { x: 0, y: 0, w: 0, h: 0 });
+  if (!rect) return;
+  const { x, y, w, h } = rect;
+  scratchCtx.save(); scratchCtx.globalAlpha = 1; scratchCtx.globalCompositeOperation = 'source-over';
+  scratchCtx.clearRect(x, y, w, h); scratchCtx.drawImage(l.canvas, x, y, w, h, x, y, w, h);
   scratchCtx.globalCompositeOperation = stroke.eraser ? 'destination-out' : paintOp(l);
   scratchCtx.globalAlpha = stroke.cfg.opacity;
-  scratchCtx.drawImage(strokeSource(), 0, 0);
-  scratchCtx.globalCompositeOperation = 'source-over'; scratchCtx.globalAlpha = 1;
+  scratchCtx.drawImage(strokeSource(rect), x, y, w, h, x, y, w, h);
+  scratchCtx.restore(); stroke.damage = null;
 }
 
 let antsOffset = 0;
@@ -1634,30 +1814,60 @@ function selectionOutline(sel) {
   sel.contours = contours; sel.outline = path;
   return path;
 }
-function render() {
-  renderQueued = false;
-  updateFloatBars();
-  const r = DPR(), m = viewM();
-  vctx.setTransform(1, 0, 0, 1, 0, 0);
-  vctx.globalAlpha = 1; vctx.globalCompositeOperation = 'source-over';
-  vctx.fillStyle = workColor; vctx.fillRect(0, 0, view.width, view.height);
-
+function paintBackground(ctx, r, m) {
+  ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.fillStyle = workColor; ctx.fillRect(0, 0, view.width, view.height);
+  ctx.setTransform(r * m.a, r * m.b, r * m.c, r * m.d, r * m.e, r * m.f); ctx.save();
+  if (S.performanceMode === 'quality') { ctx.shadowColor = 'rgba(0,0,0,.28)'; ctx.shadowBlur = 16 * r; ctx.shadowOffsetY = 2 * r; }
+  checker.setTransform(new DOMMatrix().scale(1 / S.zoom)); ctx.fillStyle = checker; ctx.fillRect(0, 0, doc.W, doc.H); ctx.restore();
+}
+function renderScene() {
+  const r = displayDpr(), m = viewM();
+  const key = [view.width, view.height, doc.W, doc.H, ...Object.values(m), workColor, S.performanceMode].join(',');
+  const canCache = view.width * view.height * 4 + (rcache ? doc.W * doc.H * 8 : 0) <= S.cacheMemory * 1024 * 1024;
+  if (canCache) {
+    if (key !== backgroundKey || !backgroundCv) {
+      if (!backgroundCv || backgroundCv.width !== view.width || backgroundCv.height !== view.height) backgroundCv = mkCanvas(view.width, view.height);
+      paintBackground(backgroundCv.getContext('2d', { alpha: false }), r, m); backgroundKey = key;
+    }
+    vctx.setTransform(1, 0, 0, 1, 0, 0); vctx.drawImage(backgroundCv, 0, 0);
+  } else { backgroundCv = null; backgroundKey = ''; paintBackground(vctx, r, m); }
   vctx.setTransform(r * m.a, r * m.b, r * m.c, r * m.d, r * m.e, r * m.f);
-  vctx.save();
-  vctx.shadowColor = 'rgba(0,0,0,.28)'; vctx.shadowBlur = 16 * r; vctx.shadowOffsetY = 2 * r;
-  checker.setTransform(new DOMMatrix().scale(1 / S.zoom));
-  vctx.fillStyle = checker; vctx.fillRect(0, 0, doc.W, doc.H);
-  vctx.restore();
-
+  vctx.globalAlpha = 1; vctx.globalCompositeOperation = 'source-over';
   vctx.imageSmoothingEnabled = S.zoom < 2 || Math.abs(normAngle(S.rot)) > 0.001;
-  vctx.imageSmoothingQuality = 'high';
+  vctx.imageSmoothingQuality = S.performanceMode === 'quality' ? 'high' : 'low';
   if (rcache) {
-    if (rcache.hasBelow) { vctx.globalAlpha = 1; vctx.drawImage(belowCv, 0, 0); }
+    if (rcache.hasBelow) vctx.drawImage(belowCv, 0, 0);
     drawItems(vctx, rcache.mid, true, 0.6 / S.zoom);
     if (rcache.hasAbove) { vctx.globalAlpha = 1; vctx.drawImage(aboveCv, 0, 0); }
   } else drawItems(vctx, flatten(), true, 0.6 / S.zoom);
   vctx.globalAlpha = 1;
-
+}
+function render() {
+  renderQueued = false;
+  const changed = sceneDirty; sceneDirty = false;
+  if (changed) {
+    const start = performance.now(); renderScene(); const elapsed = performance.now() - start;
+    perf.scenes++; perf.samples.push(elapsed); if (perf.samples.length > 120) perf.samples.shift();
+    perf.slow = elapsed > 18 ? perf.slow + 1 : Math.max(0, perf.slow - 1);
+    if (S.performanceMode === 'auto' && perf.slow >= 8 && displayDpr() > 1) {
+      perf.autoScale = 1; perf.slow = 0; setTimeout(resizeRenderSurfaces, 0);
+    }
+  }
+  updateFloatBars();
+  renderOverlay();
+}
+function renderOverlay() {
+  perf.overlays++;
+  const vctx = octx, r = displayDpr(), m = viewM();
+  const decorations = !!(selection || tf || lasso || rdrag);
+  vctx.setTransform(1, 0, 0, 1, 0, 0);
+  if (decorations || previousDecorations) vctx.clearRect(0, 0, overlay.width, overlay.height);
+  else if (previousCursor) vctx.clearRect(previousCursor.x, previousCursor.y, previousCursor.w, previousCursor.h);
+  previousDecorations = decorations;
+  const rad = Math.max(36, (cfg(currentToolForCursor()).size || 0) / 2 * S.zoom + 6) * r;
+  previousCursor = hover.inside ? { x: Math.floor(hover.sx * r - rad), y: Math.floor(hover.sy * r - rad), w: Math.ceil(rad * 2 + 2), h: Math.ceil(rad * 2 + 2) } : null;
+  vctx.globalAlpha = 1; vctx.globalCompositeOperation = 'source-over';
+  vctx.setTransform(r * m.a, r * m.b, r * m.c, r * m.d, r * m.e, r * m.f);
   // Linhas da seleção (formigas andando)
   const lw = 1 / S.zoom;
   if (selection && !tf) {
@@ -1673,7 +1883,7 @@ function render() {
   }
 
   vctx.setTransform(r, 0, 0, r, 0, 0);
-  if (tf) drawTransformBox();
+  if (tf) drawTransformBox(vctx);
 
   // Bússola enquanto gira a tela
   if (rdrag) {
@@ -1715,7 +1925,7 @@ function render() {
     }
   }
 }
-setInterval(() => { if (selection && !tf) { antsOffset = (antsOffset + 1) % 10; requestRender(); } }, 110);
+setInterval(() => { if (selection && !tf && !document.hidden) { antsOffset = (antsOffset + 1) % 10; requestOverlayRender(); } }, 110);
 
 /* =========================================================
    Pincel com pressão
@@ -1744,6 +1954,12 @@ function stamp(x, y, p) {
   const rasterRadius = Math.max(0.5, r), coverage = Math.min(1, (r * 2) ** 2);
   strokeCtx.globalAlpha = a * coverage;
   strokeCtx.beginPath(); strokeCtx.arc(x, y, rasterRadius, 0, Math.PI * 2); strokeCtx.fill();
+  const area = rectClamp({ x: x - rasterRadius - 1, y: y - rasterRadius - 1, w: rasterRadius * 2 + 2, h: rasterRadius * 2 + 2 });
+  if (area) {
+    stroke.damage = rectUnion(stroke.damage, area);
+    for (let ty = Math.floor(area.y / 128) * 128; ty < area.y + area.h; ty += 128)
+      for (let tx = Math.floor(area.x / 128) * 128; tx < area.x + area.w; tx += 128) stroke.tiles.add(tx + ',' + ty);
+  }
   const b = stroke.bbox;
   if (x - rasterRadius < b[0]) b[0] = x - rasterRadius; if (y - rasterRadius < b[1]) b[1] = y - rasterRadius;
   if (x + rasterRadius > b[2]) b[2] = x + rasterRadius; if (y + rasterRadius > b[3]) b[3] = y + rasterRadius;
@@ -1764,7 +1980,8 @@ function beginStroke(e, pt, eraser) {
   const c = S.tools[eraser ? 'eraser' : 'brush'];
   const p = pressureOf(e, c);
   stroke = { eraser, cfg: c, layer: l, lx: pt.x, ly: pt.y, lp: p, sx: pt.x, sy: pt.y, carry: 0,
-    bbox: [Infinity, Infinity, -Infinity, -Infinity], pointerId: e.pointerId, raw: { x: pt.x, y: pt.y, p } };
+    tiles: new Set(), damage: null, bbox: [Infinity, Infinity, -Infinity, -Infinity], pointerId: e.pointerId, raw: { x: pt.x, y: pt.y, p } };
+  scratchCtx.globalAlpha = 1; scratchCtx.globalCompositeOperation = 'copy'; scratchCtx.drawImage(l.canvas, 0, 0); scratchCtx.globalCompositeOperation = 'source-over';
   buildCache(new Set([l]));
   stamp(pt.x, pt.y, p);
   requestRender();
@@ -1798,13 +2015,17 @@ function endStroke() {
     strokeCtx.drawImage(selection.mask, rect.x, rect.y, rect.w, rect.h, rect.x, rect.y, rect.w, rect.h);
     strokeCtx.globalCompositeOperation = 'source-over';
   }
-  const before = l.ctx.getImageData(rect.x, rect.y, rect.w, rect.h);
+  const tiles = [...s.tiles].map(key => {
+    const [x, y] = key.split(',').map(Number), b = rectClamp(intersect({ x, y, w: 128, h: 128 }, rect));
+    return b ? { rect: b, before: l.ctx.getImageData(b.x, b.y, b.w, b.h) } : null;
+  }).filter(Boolean);
   l.ctx.save();
   l.ctx.globalAlpha = s.cfg.opacity;
   l.ctx.globalCompositeOperation = s.eraser ? 'destination-out' : paintOp(l);
   l.ctx.drawImage(strokeCv, rect.x, rect.y, rect.w, rect.h, rect.x, rect.y, rect.w, rect.h);
   l.ctx.restore();
-  pushHistory(pixelEntry(l, rect, before));
+  const entries = tiles.map(t => pixelEntry(l, t.rect, t.before));
+  if (entries.length) pushHistory({ resources: entries.flatMap(e => e.resources), undo() { entries.forEach(e => e.undo()); }, redo() { entries.forEach(e => e.redo()); } });
   updateThumb(l); requestRender();
 }
 function intersect(a, b) {
@@ -1816,107 +2037,155 @@ function intersect(a, b) {
    Liquify: deformação local, sem copiar a tela inteira por movimento.
    O histórico captura cada bloco original uma única vez por passada.
    ========================================================= */
-function beginLiquify(e, pt) {
-  const layer = drawableLayer(); if (!layer) return false;
-  const c = { ...S.tools.liquify };
-  liquify = { layer, cfg: c, pointerId: e.pointerId, x: pt.x, y: pt.y,
-    pressure: pressureOf(e, c), tiles: new Map(), alt: e.altKey, lastMove: performance.now() };
-  buildCache(new Set([layer]));
-  if (c.mode !== 'push') {
-    liquifyDab(pt.x, pt.y, 0, 0, liquify.pressure, e.altKey);
-    liquify.timer = setInterval(() => {
-      const s = liquify;
-      if (s && performance.now() - s.lastMove >= 50) {
-        liquifyDab(s.x, s.y, 0, 0, s.pressure, s.alt); requestRender();
-      }
-    }, 50);
-  }
-  requestRender(); return true;
+let liquifySequence = 0, lastLiquify = null;
+const pendingLiquifyInput = [];
+function liquifyPreview(s, defer = false) {
+  const key = [stage.clientWidth, stage.clientHeight, displayDpr(), ...Object.values(viewM())].join(',');
+  if (s.preview?.key === key) return s.preview;
+  const corners = [[0,0],[stage.clientWidth,0],[0,stage.clientHeight],[stage.clientWidth,stage.clientHeight]].map(([x,y]) => toDocXY(x,y));
+  const x = Math.max(0, Math.floor(Math.min(...corners.map(p => p.x)) / 128) * 128);
+  const y = Math.max(0, Math.floor(Math.min(...corners.map(p => p.y)) / 128) * 128);
+  const x1 = Math.min(doc.W, Math.ceil(Math.max(...corners.map(p => p.x)) / 128) * 128);
+  const y1 = Math.min(doc.H, Math.ceil(Math.max(...corners.map(p => p.y)) / 128) * 128);
+  const rect = { x: Math.min(x, doc.W - 1), y: Math.min(y, doc.H - 1), w: Math.max(1, x1-x), h: Math.max(1, y1-y) };
+  // Power-of-two sampling keeps tile boundaries aligned. This preview contains
+  // at least one source sample per display pixel; document pixels stay full size.
+  const scale = Math.min(1, 2 ** Math.ceil(Math.log2(S.zoom * displayDpr())));
+  const canvas = mkCanvas(Math.ceil(rect.w * scale), Math.ceil(rect.h * scale)), ctx = canvas.getContext('2d');
+  const p = s.preview = { key, rect, scale, canvas, ctx, tile: mkCanvas(128, 128) };
+  const draw = () => ctx.drawImage(s.layer.canvas, rect.x, rect.y, rect.w, rect.h, 0, 0, rect.w * scale, rect.h * scale);
+  if (defer && typeof createImageBitmap === 'function') {
+    p.pending = true;
+    p.ready = createImageBitmap(s.layer.canvas, rect.x, rect.y, rect.w, rect.h, { resizeWidth: canvas.width, resizeHeight: canvas.height, resizeQuality: 'low' })
+      .then(bitmap => { ctx.drawImage(bitmap, 0, 0); bitmap.close(); }).catch(draw).finally(() => { p.pending = false; });
+  } else draw();
+  return p;
 }
-function extendLiquify(x, y, p, alt) {
-  const s = liquify, dx = x - s.x, dy = y - s.y, dist = Math.hypot(dx, dy);
-  if (dist < 0.01) { s.pressure = p; s.alt = alt; return; }
-  const count = Math.ceil(dist / Math.max(1, s.cfg.size * 0.1));
-  for (let i = 1; i <= count; i++) {
-    const f = i / count;
-    liquifyDab(s.x + dx * f, s.y + dy * f, dx / count, dy / count, s.pressure + (p - s.pressure) * f, alt);
-  }
-  s.x = x; s.y = y; s.pressure = p; s.alt = alt; s.lastMove = performance.now();
+function updateLiquifyPreview(s, b, after) {
+  const p = s.preview; if (!p) return;
+  const x = (b.x-p.rect.x)*p.scale, y = (b.y-p.rect.y)*p.scale, w = b.w*p.scale, h = b.h*p.scale;
+  if (x+w <= 0 || y+h <= 0 || x >= p.canvas.width || y >= p.canvas.height) return;
+  const ctx = p.tile.getContext('2d'); ctx.putImageData(after, 0, 0);
+  p.ctx.clearRect(x, y, w, h); p.ctx.drawImage(p.tile, 0, 0, b.w, b.h, x, y, w, h);
 }
-function liquifyDab(cx, cy, dx, dy, pressure, reverse) {
-  const s = liquify, c = s.cfg, r = c.size / 2;
-  const strength = c.strength * (c.pStrength ? pressure : 1);
-  if (!(strength > 0)) return;
-  let rect = rectClamp({ x: cx - r, y: cy - r, w: 2 * r, h: 2 * r });
-  if (rect && selection) rect = rectClamp(intersect(rect, selection.bbox));
-  if (!rect) return;
-  // A margem de leitura inclui os pixels de origem do deslocamento.
-  const pad = Math.ceil(r * 0.4 + 2);
-  const srcRect = rectClamp({ x: rect.x - pad, y: rect.y - pad, w: rect.w + 2 * pad, h: rect.h + 2 * pad });
-  const ctx = s.layer.ctx, src = ctx.getImageData(srcRect.x, srcRect.y, srcRect.w, srcRect.h);
-  const out = ctx.getImageData(rect.x, rect.y, rect.w, rect.h), dst = out.data;
-  const mask = selection ? selection.mctx.getImageData(rect.x, rect.y, rect.w, rect.h).data : null;
-  let mode = c.mode, sign = reverse ? -1 : 1, changed = false;
-  if (reverse && mode === 'expand') mode = 'pinch'; else if (reverse && mode === 'pinch') mode = 'expand';
-  const mx = dx * strength, my = dy * strength;
-  for (let y = 0; y < rect.h; y++) for (let x = 0; x < rect.w; x++) {
-    const i = (y * rect.w + x) * 4;
-    if (mask && !mask[i + 3]) continue;
-    if (s.layer.alphaLock && !dst[i + 3]) continue;
-    const vx = rect.x + x + 0.5 - cx, vy = rect.y + y + 0.5 - cy;
-    const d2 = (vx * vx + vy * vy) / (r * r); if (d2 >= 1) continue;
-    const falloff = (1 - d2) ** 2;
-    let sx, sy;
-    if (mode === 'push') { sx = vx - mx * falloff; sy = vy - my * falloff; }
-    else if (mode === 'twirl') {
-      const a = -sign * strength * 0.18 * falloff, co = Math.cos(a), si = Math.sin(a);
-      sx = vx * co - vy * si; sy = vx * si + vy * co;
-    } else {
-      const scale = Math.exp((mode === 'expand' ? -1 : 1) * strength * 0.18 * falloff);
-      sx = vx * scale; sy = vy * scale;
-    }
-    sx += cx - 0.5; sy += cy - 0.5;
-    const ix = Math.floor(sx), iy = Math.floor(sy), fx = sx - ix, fy = sy - iy;
-    // Bilinear em cores pré-multiplicadas: bordas transparentes sem halo preto.
-    let a = 0, red = 0, green = 0, blue = 0;
-    for (let yy = 0; yy < 2; yy++) for (let xx = 0; xx < 2; xx++) {
-      const px = ix + xx, py = iy + yy;
-      if (px < 0 || py < 0 || px >= doc.W || py >= doc.H) continue;
-      const j = ((py - srcRect.y) * srcRect.w + px - srcRect.x) * 4;
-      const w = (xx ? fx : 1 - fx) * (yy ? fy : 1 - fy) * src.data[j + 3];
-      a += w; red += src.data[j] * w; green += src.data[j + 1] * w; blue += src.data[j + 2] * w;
-    }
-    // Com a trava, preserva exatamente o alfa; sem cor de origem, preserva o pixel.
-    if (s.layer.alphaLock && a < 0.5) continue;
-    const na = s.layer.alphaLock ? dst[i + 3] : Math.round(a);
-    const nr = na && a ? Math.round(red / a) : 0, ng = na && a ? Math.round(green / a) : 0, nb = na && a ? Math.round(blue / a) : 0;
-    if (dst[i] === nr && dst[i + 1] === ng && dst[i + 2] === nb && dst[i + 3] === na) continue;
-    changed = true;
-    dst[i] = nr; dst[i + 1] = ng; dst[i + 2] = nb; dst[i + 3] = na;
+function deferLiquifyInput(e) {
+  if (!liquify?.ending) return false;
+  if (e.type === 'lostpointercapture') return true;
+  if (e.type === 'pointerdown') {
+    try { view.setPointerCapture(e.pointerId); } catch (_) { /* Synthetic/test pointer. */ }
   }
-  if (changed) {
-    // Captura cada bloco antes da primeira gravação, fora do laço de pixels.
-    for (let ty = Math.floor(rect.y / 128) * 128; ty < rect.y + rect.h; ty += 128) {
-      for (let tx = Math.floor(rect.x / 128) * 128; tx < rect.x + rect.w; tx += 128) {
-        const key = tx + ',' + ty;
-        if (!s.tiles.has(key)) {
-          const b = rectClamp({ x: tx, y: ty, w: 128, h: 128 });
-          s.tiles.set(key, { rect: b, before: ctx.getImageData(b.x, b.y, b.w, b.h) });
-        }
-      }
-    }
-    ctx.putImageData(out, rect.x, rect.y);
+  // Keep each stroke and its pressure in order, including strokes started while
+  // the previous worker is finishing. Never replace a queued path by its endpoint.
+  if (e.type !== 'pointermove' || e.buttons || pendingLiquifyInput.length) {
+    pendingLiquifyInput.push(new PointerEvent(e.type, { pointerId: e.pointerId, pointerType: e.pointerType,
+      clientX: e.clientX, clientY: e.clientY, pressure: e.pressure, button: e.button, buttons: e.buttons,
+      altKey: e.altKey, shiftKey: e.shiftKey, ctrlKey: e.ctrlKey, metaKey: e.metaKey, bubbles: true }));
   }
+  return true;
 }
-function endLiquify() {
+function replayLiquifyInput() {
+  while (pendingLiquifyInput.length && !liquify?.ending) view.dispatchEvent(pendingLiquifyInput.shift());
+}
+function cancelLiquify() {
+  pendingLiquifyInput.length = 0;
   const s = liquify; if (!s) return;
-  clearInterval(s.timer); liquify = null; rcache = null;
-  if (s.tiles.size) {
-    const entries = [...s.tiles.values()].map((b) => pixelEntry(s.layer, b.rect, b.before));
-    pushHistory({ undo() { entries.forEach((e) => e.undo()); }, redo() { entries.forEach((e) => e.redo()); } });
+  clearInterval(s.timer); s.worker.terminate(); liquify = null; s.resolve(false);
+}
+async function finishLiquify() {
+  while (liquify) await endLiquify();
+}
+function completeLiquify(s, stats, error) {
+  if (liquify !== s) return;
+  clearInterval(s.timer); if (error) s.worker.terminate(); else DoodleLiquifyEngine.release(s.worker); liquify = null; rcache = null;
+  if (error) {
+    for (const b of s.tiles.values()) s.layer.ctx.putImageData(b.before, b.rect.x, b.rect.y);
+    setDirty(s.wasDirty || S.dirty);
+    toast(t('Não foi possível concluir o Liquify. A passada foi revertida.'), 6000);
+  } else if (s.tiles.size) {
+    const entries = [...s.tiles.values()];
+    const put = key => { for (const b of entries) s.layer.ctx.putImageData(b[key], b.rect.x, b.rect.y); updateThumb(s.layer); };
+    pushHistory({ resources: entries.flatMap(b => [b.before, b.after]), undo() { put('before'); }, redo() { put('after'); } });
     updateThumb(s.layer);
   }
-  requestRender();
+  lastLiquify = { ...s.info, ...stats, status: error ? 'reverted' : 'complete', error: error || null,
+    elapsedMs: performance.now() - s.started, finishWaitMs: s.ended ? performance.now() - s.ended : 0,
+    inputEvents: s.events, mainPublishMs: s.publishMs, maxMainPublishMs: s.maxPublishMs };
+  requestRender(); replayLiquifyInput(); s.resolve(!error);
+}
+async function liquifyMessage(s, m) {
+  if (liquify !== s || m.id !== s.id) return;
+  if (m.type === 'done' || m.type === 'error') { completeLiquify(s, m.stats, m.message); return; }
+  try {
+    if (m.type === 'tiles') {
+      const transfer = [], tiles = [];
+      for (const b of m.tiles) {
+        const item = { ...b };
+        if (s.worker.backend === 'worker' && typeof createImageBitmap === 'function') {
+          item.bitmap = await createImageBitmap(s.layer.canvas, b.x, b.y, b.w, b.h);
+          transfer.push(item.bitmap);
+          if (s.selection) { item.maskBitmap = await createImageBitmap(s.selection.mask, b.x, b.y, b.w, b.h); transfer.push(item.maskBitmap); }
+        } else {
+          item.data = s.layer.ctx.getImageData(b.x, b.y, b.w, b.h).data; transfer.push(item.data.buffer);
+          if (s.selection) { item.mask = s.selection.mctx.getImageData(b.x, b.y, b.w, b.h).data; transfer.push(item.mask.buffer); }
+        }
+        tiles.push(item);
+      }
+      if (liquify !== s) { for (const b of tiles) { b.bitmap?.close(); b.maskBitmap?.close(); } return; }
+      s.worker.postMessage({ type: 'reply', request: m.request, value: tiles }, transfer);
+    } else if (m.type === 'paint') {
+      await s.previewReady;
+      if (liquify !== s) return;
+      const start = performance.now();
+      liquifyPreview(s);
+      for (const b of m.tiles) {
+        const after = new ImageData(b.data, b.w, b.h);
+        if (b.before) s.tiles.set(b.key, { rect: { x: b.x, y: b.y, w: b.w, h: b.h }, before: new ImageData(b.before, b.w, b.h), after });
+        else s.tiles.get(b.key).after = after;
+        s.layer.ctx.putImageData(after, b.x, b.y);
+        updateLiquifyPreview(s, b, after);
+      }
+      if (m.tiles.length && !s.changed) { s.changed = true; setDirty(true); }
+      const elapsed = performance.now() - start; s.publishMs += elapsed; s.maxPublishMs = Math.max(s.maxPublishMs, elapsed);
+      requestRender();
+      // Acknowledge a bounded batch before the worker produces more previews.
+      s.worker.postMessage({ type: 'reply', request: m.request, value: true });
+    }
+  } catch (e) { completeLiquify(s, null, String(e?.message || e)); }
+}
+function beginLiquify(e, pt) {
+  const layer = drawableLayer(); if (!layer) return false;
+  const c = { ...S.tools.liquify }, worker = DoodleLiquifyEngine.create(window.__DOODLE_FORCE_COOPERATIVE__ === true);
+  const s = liquify = { id: ++liquifySequence, layer, cfg: c, worker, selection, pointerId: e.pointerId,
+    x: pt.x, y: pt.y, pressure: pressureOf(e, c), tiles: new Map(), alt: e.altKey, lastMove: performance.now(),
+    started: performance.now(), events: 0, publishMs: 0, maxPublishMs: 0, ending: false, wasDirty: S.dirty,
+    info: { backend: worker.backend, mode: c.mode, size: c.size, strength: c.strength, pressureEnabled: c.pStrength,
+      document: [doc.W, doc.H], alphaLock: layer.alphaLock, selection: !!selection } };
+  s.done = new Promise(resolve => { s.resolve = resolve; });
+  s.previewReady = liquifyPreview(s, true).ready;
+  worker.onmessage = ({ data }) => { void liquifyMessage(s, data); };
+  worker.onerror = e => completeLiquify(s, null, e.message || 'Worker failed');
+  worker.postMessage({ type: 'begin', id: s.id, cfg: c, W: doc.W, H: doc.H, x: pt.x, y: pt.y, p: s.pressure,
+    alphaLock: layer.alphaLock, selection: selection?.bbox || null, forceCpu: window.__DOODLE_FORCE_CPU__ === true });
+  rcache = null;
+  const tick = () => worker.postMessage({ type: 'point', id: s.id, x: s.x, y: s.y, p: s.pressure, alt: s.alt, tick: true });
+  if (c.mode !== 'push') {
+    tick();
+    s.timer = setInterval(() => { if (liquify === s && !s.ending && performance.now() - s.lastMove >= 50) tick(); }, 50);
+  }
+  requestOverlayRender(); return true;
+}
+function extendLiquify(x, y, p, alt) {
+  const s = liquify; if (!s || s.ending) return;
+  s.events++; s.worker.postMessage({ type: 'point', id: s.id, x, y, p, alt });
+  s.x = x; s.y = y; s.pressure = p; s.alt = alt; s.lastMove = performance.now();
+}
+function endLiquify() {
+  const s = liquify; if (!s) return Promise.resolve(true);
+  if (!s.ending) {
+    s.ending = true; s.ended = performance.now(); clearInterval(s.timer);
+    s.worker.postMessage({ type: 'end', id: s.id });
+  }
+  return s.done;
 }
 
 /* =========================================================
@@ -2239,7 +2508,7 @@ function tfHandles() {
   }
   return out;
 }
-function drawTransformBox() {
+function drawTransformBox(vctx = octx) {
   const cs = tfCorners().map(docToScreen);
   vctx.beginPath(); cs.forEach((p, i) => (i ? vctx.lineTo(p.x, p.y) : vctx.moveTo(p.x, p.y))); vctx.closePath();
   vctx.lineWidth = 3; vctx.strokeStyle = 'rgba(255,255,255,.8)'; vctx.stroke();
@@ -2384,6 +2653,7 @@ function applyTransform() {
   tf = null; rcache = null;
   const selAfter = selection;
   if (entries.length) pushHistory({
+    resources: [...entries.flatMap(e => [e.before, e.after]), selBefore?.mask, selAfter?.mask],
     undo() { entries.forEach((x) => { x.l.ctx.putImageData(x.before, rect.x, rect.y); updateThumb(x.l); }); selection = selBefore; },
     redo() { entries.forEach((x) => { x.l.ctx.putImageData(x.after, rect.x, rect.y); updateThumb(x.l); }); selection = selAfter; },
   });
@@ -2539,8 +2809,8 @@ function floodFill(x, y) {
 let panning = null, picking = false, zdrag = null, altDown = false;
 const holds = { pan: false, zoom: false, rotate: false };
 let rdrag = null;
-function toDoc(e) {
-  const r = view.getBoundingClientRect();
+function toDoc(e, bounds) {
+  const r = bounds || view.getBoundingClientRect();
   const sx = e.clientX - r.left, sy = e.clientY - r.top, d = toDocXY(sx, sy);
   return { sx, sy, x: d.x, y: d.y };
 }
@@ -2557,15 +2827,22 @@ function updateCursor() {
   stage.className = t === 'pan' ? (panning ? 'c-grabbing' : 'c-grab') : t === 'zoom' ? 'c-zoom' : t === 'rotate' ? 'c-rot'
     : (t === 'brush' || t === 'eraser' || t === 'liquify') ? 'c-none' : t === 'tf' ? '' : t === 'lasso' ? 'c-lasso' : 'c-cross';
   if (t !== 'tf') view.style.cursor = '';
-  requestRender();
+  requestOverlayRender();
 }
+let pendingPen = null, penRaf = 0;
 function showPen(e) {
-  const el = $('#stPen');
-  if (e.pointerType === 'pen') { el.textContent = t('Caneta · pressão ') + (e.pressure || 0).toFixed(2); el.classList.add('live'); }
-  else { el.textContent = e.pointerType === 'touch' ? t('Toque') : t('Mouse'); el.classList.remove('live'); }
+  pendingPen = { type: e.pointerType, pressure: e.pressure || 0 };
+  if (penRaf) return;
+  penRaf = requestAnimationFrame(() => {
+    penRaf = 0; const p = pendingPen, el = $('#stPen');
+    const text = p.type === 'pen' ? t('Caneta · pressão ') + p.pressure.toFixed(2) : t(p.type === 'touch' ? 'Toque' : 'Mouse');
+    if (el.textContent !== text) el.textContent = text;
+    el.classList.toggle('live', p.type === 'pen');
+  });
 }
 
 view.addEventListener('pointerdown', (e) => {
+  if (deferLiquifyInput(e)) return;
   if (stroke || liquify || panning || lasso || zdrag || rdrag || (tf && tf.drag)) return;
   if (!$('#opts').hidden) toggleOpts(false);
   try { view.setPointerCapture(e.pointerId); } catch (err) { /* ponteiro já liberado */ }
@@ -2606,7 +2883,8 @@ view.addEventListener('pointerdown', (e) => {
   if (S.tool === 'brush' || S.tool === 'eraser' || penEraser) beginStroke(e, pt, penEraser || S.tool === 'eraser');
 });
 view.addEventListener('pointermove', (e) => {
-  const pt = toDoc(e);
+  if (deferLiquifyInput(e)) { const p = toDoc(e); hover.sx = p.sx; hover.sy = p.sy; requestOverlayRender(); return; }
+  const bounds = view.getBoundingClientRect(), pt = toDoc(e, bounds);
   hover.inside = true; hover.sx = pt.sx; hover.sy = pt.sy; hover.x = pt.x; hover.y = pt.y;
   if (panning && e.pointerId === panning.id) {
     S.panX = panning.px + (e.clientX - panning.x); S.panY = panning.py + (e.clientY - panning.y);
@@ -2634,27 +2912,28 @@ view.addEventListener('pointermove', (e) => {
   if (lasso && e.pointerId === lasso.id) {
     const evs = (e.getCoalescedEvents && e.getCoalescedEvents()) || [];
     for (const ce of (evs.length ? evs : [e])) {
-      const p = toDoc(ce), last = lasso.pts[lasso.pts.length - 1];
+      const p = toDoc(ce, bounds), last = lasso.pts[lasso.pts.length - 1];
       if (Math.hypot(p.x - last.x, p.y - last.y) * S.zoom > 1.5) lasso.pts.push({ x: p.x, y: p.y });
     }
     requestRender(); return;
   }
   if (liquify && e.pointerId === liquify.pointerId) {
     extendLiquify(pt.x, pt.y, pressureOf(e, liquify.cfg), e.altKey);
-    showPen(e); requestRender(); return;
+    showPen(e); requestOverlayRender(); return;
   }
   if (stroke && e.pointerId === stroke.pointerId) {
     const evs = (e.getCoalescedEvents && e.getCoalescedEvents()) || [];
     for (const ce of (evs.length ? evs : [e])) {
-      const p = toDoc(ce), pr = pressureOf(ce, stroke.cfg);
+      const p = toDoc(ce, bounds), pr = pressureOf(ce, stroke.cfg);
       stroke.raw = { x: p.x, y: p.y, p: pr };
       extendStroke(p.x, p.y, pr);
     }
     showPen(e);
   } else if (e.pointerType === 'pen') showPen(e);
-  requestRender();
+  if (stroke) requestRender(); else requestOverlayRender();
 });
 function pointerEnd(e) {
+  if (deferLiquifyInput(e)) return;
   if (panning && e.pointerId === panning.id) { panning = null; updateCursor(); }
   if (rdrag && e.pointerId === rdrag.id) { rdrag = null; updateCursor(); }
   if (zdrag && e.pointerId === zdrag.id) {
@@ -2680,7 +2959,7 @@ function pointerEnd(e) {
 view.addEventListener('lostpointercapture', pointerEnd);
 view.addEventListener('pointerup', pointerEnd);
 view.addEventListener('pointercancel', pointerEnd);
-view.addEventListener('pointerleave', () => { if (!stroke && !liquify && !panning && !lasso) { hover.inside = false; requestRender(); } });
+view.addEventListener('pointerleave', () => { if (!stroke && !liquify && !panning && !lasso) { hover.inside = false; requestOverlayRender(); } });
 view.addEventListener('contextmenu', (e) => e.preventDefault());
 view.addEventListener('wheel', (e) => {
   e.preventDefault();
@@ -2692,7 +2971,7 @@ view.addEventListener('wheel', (e) => {
    Ferramentas e opções
    ========================================================= */
 function setTool(t) {
-  if (liquify) endLiquify();
+  if (liquify) return finishLiquify().then(() => setTool(t));
   if (tf) applyTransform();
   S.tool = t;
   document.querySelectorAll('.tool').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.tool === t)));
@@ -2989,13 +3268,13 @@ const recovery = (() => {
   const hash = async bytes => [...new Uint8Array(await crypto.subtle.digest('SHA-256', bytes))].map(n => n.toString(16).padStart(2, '0')).join('');
   const pause = () => new Promise(resolve => setTimeout(resolve, 0));
   const busy = () => stroke || liquify || lasso || tf || saving || openModal;
-  function newDocument() { current = { id: uuid(), revision: 0, lastRevision: 0, last: Date.now(), changed: Date.now(), cache: new WeakMap(), source: null }; }
+  function newDocument() { clearTimeout(retry); current = { id: uuid(), revision: 0, lastRevision: 0, last: Date.now(), changed: Date.now(), cache: new WeakMap(), source: null, failures: 0, nextAttempt: 0 }; }
   function changed() {
     if (!current) return;
     current.revision++; current.changed = Date.now();
     if (ready && S.recoveryInterval && Date.now() - current.last >= S.recoveryInterval * 1000) {
       clearTimeout(retry);
-      retry = setTimeout(() => { void run(); }, Date.now() - current.last >= S.recoveryInterval * 1000 + 10000 ? 0 : 200);
+      retry = setTimeout(() => { void run({ force: false }); }, Date.now() - current.last >= S.recoveryInterval * 1000 + 10000 ? 0 : 200);
     }
   }
   async function storage() {
@@ -3006,11 +3285,15 @@ const recovery = (() => {
       const path = key => { if (!keyOK(key)) throw new Error('Invalid recovery key'); return location + '/' + key; };
       return {
         location,
-        async list() {
+        async list(session = null) {
+          if (session && !/^[a-f0-9-]{36}$/.test(session)) throw new Error('Invalid session');
           const out = [];
-          for (const folder of await fs.readDir(location)) {
+          const folders = session ? [{ name: session, isDirectory: true }] : await fs.readDir(location);
+          for (const folder of folders) {
             if (!folder.isDirectory || !/^[a-f0-9-]{36}$/.test(folder.name)) continue;
-            for (const f of await fs.readDir(location + '/' + folder.name)) {
+            let entries;
+            try { entries = await fs.readDir(location + '/' + folder.name); } catch (e) { if (session && /not found|no such|os error 2|ENOENT/i.test(String(e))) continue; throw e; }
+            for (const f of entries) {
               if (!f.isFile || !/^(p-[a-f0-9]{64}\.png|v-[\d-]+\.json|ack\.json)(\.[a-f0-9-]+\.tmp)?$/.test(f.name)) continue;
               const key = folder.name + '/' + f.name;
               if (!sizes.has(key)) sizes.set(key, (await fs.stat(location + '/' + key)).size);
@@ -3037,8 +3320,8 @@ const recovery = (() => {
     }
     if (!window.indexedDB || IN_PREVIEW || !crypto.subtle) return null;
     const db = await new Promise((resolve, reject) => {
-      const r = indexedDB.open('doodle.recovery.v1', 1);
-      r.onupgradeneeded = () => r.result.createObjectStore('files');
+      const r = indexedDB.open('doodle.recovery.v1', 2);
+      r.onupgradeneeded = () => { if (!r.result.objectStoreNames.contains('files')) r.result.createObjectStore('files'); if (!r.result.objectStoreNames.contains('sizes')) r.result.createObjectStore('sizes'); };
       r.onsuccess = () => resolve(r.result); r.onerror = () => reject(r.error);
     });
     db.onversionchange = () => db.close();
@@ -3050,16 +3333,41 @@ const recovery = (() => {
     }
     return {
       location: '',
-      async list() {
-        return new Promise((resolve, reject) => {
-          const tx = db.transaction('files'), out = [], r = tx.objectStore('files').openCursor();
-          r.onsuccess = () => { const c = r.result; if (c) { out.push({ key: c.key, size: c.value.byteLength }); c.continue(); } };
-          tx.oncomplete = () => resolve(out); tx.onerror = () => reject(tx.error);
+      async list(session = null) {
+        if (session && !/^[a-f0-9-]{36}$/.test(session)) throw new Error('Invalid session');
+        const range = session ? IDBKeyRange.bound(session + '/', session + '/\uffff') : null;
+        // Scan keys and small metadata; legacy byte sizes are migrated once, lazily.
+        const { keys, sizes } = await new Promise((resolve, reject) => {
+          const tx = db.transaction(['files', 'sizes']), keys = [], sizes = new Map();
+          const k = tx.objectStore('files').openKeyCursor(range), m = tx.objectStore('sizes').openCursor(range);
+          k.onsuccess = () => { const c = k.result; if (c) { keys.push(c.key); c.continue(); } };
+          m.onsuccess = () => { const c = m.result; if (c) { sizes.set(c.key, c.value); c.continue(); } };
+          tx.oncomplete = () => resolve({ keys, sizes }); tx.onerror = () => reject(tx.error); tx.onabort = () => reject(tx.error);
         });
+        const out = [];
+        for (const key of keys) {
+          let size = sizes.get(key);
+          if (!Number.isFinite(size)) {
+            const bytes = await transact('readonly', store => store.get(key));
+            if (!bytes) continue;
+            size = bytes.byteLength;
+            await new Promise((resolve, reject) => { const tx = db.transaction('sizes', 'readwrite'); tx.objectStore('sizes').put(size, key); tx.oncomplete = resolve; tx.onerror = () => reject(tx.error); });
+          }
+          out.push({ key, size });
+        }
+        return out;
       },
-      async get(key) { const bytes = await transact('readonly', s => s.get(key)); if (!bytes) throw new Error('Recovery file missing'); return new Uint8Array(bytes); },
-      put: (key, bytes) => transact('readwrite', s => s.put(bytes, key)),
-      del: key => transact('readwrite', s => s.delete(key)),
+      async get(key) { const bytes = await transact('readonly', store => store.get(key)); if (!bytes) throw new Error('Recovery file missing'); return new Uint8Array(bytes); },
+      put: (key, bytes) => new Promise((resolve, reject) => {
+        const tx = db.transaction(['files', 'sizes'], 'readwrite');
+        tx.objectStore('files').put(bytes, key); tx.objectStore('sizes').put(bytes.byteLength, key);
+        tx.oncomplete = resolve; tx.onerror = () => reject(tx.error); tx.onabort = () => reject(tx.error);
+      }),
+      del: key => new Promise((resolve, reject) => {
+        const tx = db.transaction(['files', 'sizes'], 'readwrite');
+        tx.objectStore('files').delete(key); tx.objectStore('sizes').delete(key);
+        tx.oncomplete = resolve; tx.onerror = () => reject(tx.error); tx.onabort = () => reject(tx.error);
+      }),
     };
   }
   function nodes(tree) { const out = []; const walkTree = xs => xs.forEach(n => { out.push(n); if (n.children) walkTree(n.children); }); walkTree(tree); return out; }
@@ -3085,20 +3393,21 @@ const recovery = (() => {
   async function records(session = null) {
     if (!disk) return [];
     const out = [];
-    for (const f of await disk.list()) {
+    for (const f of await disk.list(session)) {
       if (!/\/v-[\d-]+\.json$/.test(f.key) || (session && !f.key.startsWith(session + '/'))) continue;
       try { const m = valid(JSON.parse(dec.decode(await disk.get(f.key))), f.key); out.push({ key: f.key, meta: m }); } catch (e) { /* uma versão ruim não esconde as anteriores */ }
     }
     return out.sort((a, b) => a.meta.session === b.meta.session ? b.meta.revision - a.meta.revision : b.meta.time - a.meta.time);
   }
-  async function prune(session, pins = []) {
+  async function prune(session, pins = [], keepCount = S.recoveryVersions) {
+    if (TAURI && disk.location) await TAURI.fs.mkdir(disk.location + '/' + session, { recursive: true });
     const own = await records(session), keep = new Set(pins);
-    for (const r of own.slice(0, 3)) {
+    for (const r of own.slice(0, keepCount)) {
       keep.add(r.key);
       for (const n of nodes(r.meta.tree)) if (n.type === 'layer') keep.add(session + '/p-' + n.blob + '.png');
     }
     // Se a remoção de um manifesto falhar, não apaga nenhum PNG nesta passagem.
-    const files = (await disk.list()).filter(f => f.key.startsWith(session + '/'));
+    const files = await disk.list(session);
     for (const f of files) if (/\/v-/.test(f.key) && !keep.has(f.key)) await disk.del(f.key);
     for (const f of files) if (!/\/v-/.test(f.key) && !f.key.endsWith('/ack.json') && !keep.has(f.key)) await disk.del(f.key);
   }
@@ -3111,14 +3420,15 @@ const recovery = (() => {
     failure = t('Não consegui criar a cópia de recuperação: ') + (e.message || e); status();
     if (Date.now() - warned > 300000) { warned = Date.now(); toast(failure, 6500); }
   }
-  async function run() {
+  async function run({ force = true } = {}) {
+    if (!force && current && Date.now() < current.nextAttempt) return false;
     if (!ready || !disk || !S.recoveryInterval || !S.dirty || !current || current.revision <= current.lastRevision || busy() || working) return false;
     const gen = current, revision = gen.revision, W = doc.W, H = doc.H, root = doc.root;
     const stable = () => current === gen && gen.revision === revision && doc.root === root && !busy();
     working = (async () => {
       try {
         const pins = allLayers().map(n => { const c = gen.cache.get(n); return c?.version === (n.pixelVersion || 0) ? c.key : null; }).filter(Boolean);
-        await prune(gen.id, pins);
+        await prune(gen.id, pins, 10);
         const files = await disk.list(), known = new Set(files.map(f => f.key)); let used = files.reduce((n, f) => n + f.size, 0);
         const limit = S.recoveryLimit * 1024 * 1024, refs = [];
         const capture = xs => xs.map(n => {
@@ -3133,7 +3443,8 @@ const recovery = (() => {
         // Até duas camadas alteradas: captura ambas no mesmo turno, antes de ceder
         // a UI. A cópia continua consistente mesmo se o próximo traço começar.
         // Acima disso, aquece o cache sequencialmente para limitar o pico de memória.
-        const sealed = missing.length <= 2;
+        if (missing.length && used >= limit) throw new Error(t('O limite das cópias foi atingido. Descarte cópias antigas ou aumente o espaço nas configurações.'));
+        const sealed = missing.length <= 2 && missing.length * W * H <= 16e6;
         const captures = sealed ? missing.map(ref => { stats.encoded++; return canvasToPng(ref.node.canvas); }) : [];
         const preview = () => {
           const scale = Math.min(1, 160 / W, 160 / H), thumb = mkCanvas(Math.round(W * scale), Math.round(H * scale)), ctx = thumb.getContext('2d');
@@ -3168,9 +3479,12 @@ const recovery = (() => {
         if (used + bytes.length > limit) throw new Error(t('O limite das cópias foi atingido. Descarte cópias antigas ou aumente o espaço nas configurações.'));
         if (!sealed && !stable()) return false;
         await disk.put(gen.id + '/v-' + m.time + '-' + revision + '.json', bytes);
-        gen.lastRevision = revision; gen.last = Date.now(); stats.committed++; failure = ''; status();
+        gen.lastRevision = revision; gen.last = Date.now(); gen.failures = 0; gen.nextAttempt = 0; stats.committed++; failure = ''; status();
         await prune(gen.id); return true;
-      } catch (e) { warn(e); return false; }
+      } catch (e) {
+        gen.failures++; gen.nextAttempt = Date.now() + Math.min(300000, 5000 * 2 ** Math.min(gen.failures - 1, 6));
+        warn(e); return false;
+      }
     })();
     try { return await working; } finally { working = null; }
   }
@@ -3263,7 +3577,7 @@ const recovery = (() => {
       const item = document.createElement('div'); item.className = 'recovery-item';
       const img = document.createElement('img'); img.alt = ''; const body = document.createElement('div'), name = document.createElement('strong'), select = document.createElement('select');
       select.setAttribute('aria-label', t('Ver cópias'));
-      versions.slice(0, 3).forEach(r => { const option = document.createElement('option'); option.value = r.key; option.textContent = new Date(r.meta.time).toLocaleString(); select.append(option); });
+      versions.slice(0, 10).forEach(r => { const option = document.createElement('option'); option.value = r.key; option.textContent = new Date(r.meta.time).toLocaleString(); select.append(option); });
       const update = () => { const m = versions.find(r => r.key === select.value).meta; name.textContent = m.name; img.removeAttribute('src'); if (typeof m.preview === 'string' && m.preview.length < 200000 && /^data:image\/png;base64,/.test(m.preview)) img.src = m.preview; };
       select.addEventListener('change', update); update(); body.append(name, select); item.append(img, body);
       const actions = document.createElement('div'); actions.className = 'actions';
@@ -3306,11 +3620,13 @@ const recovery = (() => {
     catch (e) { ready = true; warn(e); }
     timer = setInterval(() => {
       if (current && S.recoveryInterval && Date.now() - current.last >= S.recoveryInterval * 1000 &&
-          (Date.now() - current.changed >= 750 || Date.now() - current.last >= S.recoveryInterval * 1000 + 10000)) void run();
+          (Date.now() - current.changed >= 750 || Date.now() - current.last >= S.recoveryInterval * 1000 + 10000)) void run({ force: false });
     }, 1000);
   }
   let initPromise;
   return { newDocument, changed, run, acknowledge, records, ora, restore, discard, show, stats,
+    retry() { if (current) { current.nextAttempt = 0; current.failures = 0; } },
+    async usage() { if (!ready) await initPromise; const files = disk ? await disk.list() : []; return { bytes: files.reduce((sum, f) => sum + f.size, 0), files: files.length, sessions: new Set(files.map(f => f.key.split('/')[0])).size }; },
     start() { return initPromise ||= init(); },
     get state() { return current; }, get store() { return disk; }, get ready() { return ready; }, get working() { return working; }, get busyUI() { return uiBusy; } };
 })();
@@ -3451,8 +3767,8 @@ const PNG_FILTER = { name: t('Imagem PNG'), extensions: ['png'] };
 const OPEN_FILTER = { name: t('Desenhos e imagens'), extensions: ['ora', 'png', 'jpg', 'jpeg', 'webp', 'bmp'] };
 
 async function writeOut(bytes, suggested, kind, reusePath) {
-  const filter = kind === 'ora' ? ORA_FILTER : kind === 'psd' ? { name: t('Documento Photoshop (.psd)'), extensions: ['psd'] } : PNG_FILTER;
-  const ext = '.' + filter.extensions[0], mime = kind === 'ora' ? 'image/openraster' : kind === 'psd' ? 'image/vnd.adobe.photoshop' : 'image/png';
+  const filter = kind === 'ora' ? ORA_FILTER : kind === 'psd' ? { name: t('Documento Photoshop (.psd)'), extensions: ['psd'] } : kind === 'json' ? { name: 'JSON', extensions: ['json'] } : PNG_FILTER;
+  const ext = '.' + filter.extensions[0], mime = kind === 'ora' ? 'image/openraster' : kind === 'psd' ? 'image/vnd.adobe.photoshop' : kind === 'json' ? 'application/json' : 'image/png';
   if (TAURI) {
     let path = reusePath;
     if (!path) {
@@ -3565,6 +3881,7 @@ window.addEventListener('drop', async (e) => {
   e.preventDefault(); dragDepth = 0; $('#dropHint').hidden = true;
   if (openModal || saving) return;
   const files = [...e.dataTransfer.files]; if (!files.length) return;
+  if (liquify) await finishLiquify();
   const first = new Uint8Array(await files[0].arrayBuffer());
   if (isZip(first) || /\.ora$/i.test(files[0].name)) {
     if (S.dirty && !(await confirmBox(t('Abrir ') + files[0].name + '?', t('As alterações não salvas deste desenho serão perdidas.'), t('Abrir mesmo assim')))) return;
@@ -3583,8 +3900,9 @@ window.addEventListener('paste', async (e) => {
   if (imgs.length) {
     const items = [];
     for (const it of imgs) { const f = it.getAsFile(); if (f) items.push({ bytes: new Uint8Array(await f.arrayBuffer()), name: t('Imagem colada') }); }
+    if (liquify) await finishLiquify();
     importImagesAsLayers(items);
-  } else pasteInternal();
+  } else { if (liquify) await finishLiquify(); pasteInternal(); }
 });
 
 /* =========================================================
@@ -3592,7 +3910,7 @@ window.addEventListener('paste', async (e) => {
    ========================================================= */
 let openModal = null;
 function showModal(id) { openModal = $(id); openModal.hidden = false; const f = openModal.querySelector('input,.primary'); if (f) f.focus(); }
-function closeModal() { if (openModal?.id === 'mRecovery' && recovery.busyUI) return; if (openModal) { openModal.hidden = true; openModal = null; listening = null; } }
+function closeModal() { if (openModal?.id === 'mRecovery' && recovery.busyUI) return; if (openModal) { const performanceOpen = openModal.id === 'mPerformance'; openModal.hidden = true; openModal = null; listening = null; if (performanceOpen) { stopDiagnostics(); settingsBtn.focus(); } } }
 document.querySelectorAll('[data-close]').forEach((b) => b.addEventListener('click', closeModal));
 document.querySelectorAll('.modal-back').forEach((m) => m.addEventListener('pointerdown', (e) => { if (e.target === m) { if (m.id === 'mConfirm') $('#confirmNo').click(); else closeModal(); } }));
 
@@ -3808,13 +4126,13 @@ function isTyping(e) {
   return t && ((t.tagName === 'INPUT' && !['range', 'checkbox', 'radio', 'color'].includes(t.type)) || t.isContentEditable);
 }
 function runAction(id) {
-  if (liquify) endLiquify();
+  if (liquify) return finishLiquify().then(() => runAction(id));
   if (tf && !TF_SAFE.has(id)) applyTransform();
   const f = RUN[id]; if (f) f();
 }
 window.addEventListener('keydown', (e) => {
   lassoModifiers.ctrl = e.ctrlKey || e.metaKey; lassoModifiers.shift = e.shiftKey;
-  syncLassoModes(); requestRender();
+  syncLassoModes(); requestOverlayRender();
   if (listening) { captureKey(e); return; }
   if (e.key === 'Escape') {
     if (!ctxMenu.hidden) { closeMenu(); return; }
@@ -3849,7 +4167,7 @@ window.addEventListener('keyup', (e) => {
   if (holdKeyMatches('hold.zoom', e)) { holds.zoom = false; updateCursor(); }
   if (holdKeyMatches('hold.rotate', e)) { holds.rotate = false; updateCursor(); }
   if (e.key === 'Alt') { e.preventDefault(); altDown = false; if (liquify) liquify.alt = false; updateCursor(); }
-  syncLassoModes(); requestRender();
+  syncLassoModes(); requestOverlayRender();
 });
 window.addEventListener('blur', () => { if (liquify) endLiquify(); holds.pan = holds.zoom = holds.rotate = false; altDown = false; lassoModifiers.ctrl = lassoModifiers.shift = false; syncLassoModes(); updateCursor(); });
 
@@ -3882,7 +4200,7 @@ function showUpdate(upd) {
   $('#updBanner').hidden = false;
 }
 async function checkUpdates(manual) {
-  if (!TAURI || !TAURI.updater) return;
+  if (!await updatesAllowed) return;
   try {
     if (manual) toast(t('Procurando atualizações…'));
     const upd = await TAURI.updater.check();
@@ -3895,6 +4213,7 @@ async function checkUpdates(manual) {
   }
 }
 async function installUpdate() {
+  if (!await updatesAllowed) return;
   const upd = pendingUpdate; if (!upd) return;
   if (S.dirty && !(await confirmBox(t('Atualizar sem salvar?'), t('O app vai fechar e abrir de novo. As alterações não salvas deste desenho serão perdidas.'), t('Atualizar mesmo assim')))) return;
   $('#updNow').disabled = true; $('#updLater').disabled = true;
@@ -3918,12 +4237,13 @@ async function installUpdate() {
 $('#updNow').addEventListener('click', installUpdate);
 $('#updLater').addEventListener('click', () => { $('#updBanner').hidden = true; });
 $('#btnUpdates').addEventListener('click', () => { closeSettingsMenu(true); checkUpdates(true); });
-$('#btnUpdates').disabled = !(TAURI && TAURI.updater);
+$('#btnUpdates').disabled = true;
+updatesAllowed.then(allowed => { $('#btnUpdates').disabled = !allowed; });
 $('#btnRecovery').addEventListener('click', () => { void recovery.show().catch(e => toast(t('Não consegui recuperar: ') + (e.message || e), 5000)); });
 $('#recoveryShow').addEventListener('click', () => $('#btnRecovery').click());
 $('#recoveryLater').addEventListener('click', () => { $('#recoveryNotice').hidden = true; });
-$('#recoveryInterval').addEventListener('change', e => { S.recoveryInterval = Number(e.target.value); saveSettingsSoon(); });
-$('#recoveryLimit').addEventListener('change', e => { S.recoveryLimit = Number(e.target.value); saveSettingsSoon(); });
+$('#recoveryInterval').addEventListener('change', e => { S.recoveryInterval = Number(e.target.value); recovery.retry(); saveSettingsSoon(); });
+$('#recoveryLimit').addEventListener('change', e => { S.recoveryLimit = Number(e.target.value); recovery.retry(); saveSettingsSoon(); });
 $('#updatesBrowserHint').hidden = !!(TAURI && TAURI.updater);
 if (TAURI) {
   if (TAURI.app) TAURI.app.getVersion().then((v) => { $('#appVersion').textContent = 'v' + v; }).catch(() => {});
@@ -4056,7 +4376,7 @@ function updateStatus() {
 }
 
 /* Avisar antes de fechar com alterações não salvas */
-window.addEventListener('beforeunload', (e) => { if (S.dirty && !TAURI) { e.preventDefault(); e.returnValue = ''; } });
+window.addEventListener('beforeunload', (e) => { if ((S.dirty || liquify) && !TAURI) { e.preventDefault(); e.returnValue = ''; } });
 if (TAURI && TAURI.window) {
   try {
     const win = TAURI.window.getCurrentWindow();
@@ -4064,9 +4384,10 @@ if (TAURI && TAURI.window) {
     win.onCloseRequested(async (ev) => {
       if (closing || saving || recovery.busyUI) { ev.preventDefault(); return; }
       if (stroke) endStroke();
-      if (liquify) endLiquify();
+      const waitedForLiquify = !!liquify;
+      if (waitedForLiquify) { ev.preventDefault(); closing = true; await finishLiquify(); closing = false; }
       if (tf) applyTransform();
-      if (!S.dirty) return;
+      if (!S.dirty) { if (waitedForLiquify) await win.destroy(); return; }
       ev.preventDefault();
       closing = true;
       try {
@@ -4096,6 +4417,147 @@ if (TAURI && TAURI.window) {
   } catch (e) { console.warn(e); }
 }
 
+
+for (const c of [view, overlay]) {
+  c.addEventListener('contextlost', e => { e.preventDefault(); perf.contextLosses++; });
+  c.addEventListener('contextrestored', () => { releaseRenderCaches(); previousDecorations = true; requestRender(); });
+}
+try { new PerformanceObserver(list => { perf.longTasks += list.getEntries().length; }).observe({ type: 'longtask', buffered: true }); } catch (_) { /* optional API */ }
+document.addEventListener('visibilitychange', () => { if (!document.hidden) { resizeRenderSurfaces(); requestRender(); } });
+
+
+/* =========================================================
+   Preferências de desempenho e diagnóstico local
+   ========================================================= */
+let nativeGraphics = null, graphicsError = false, diagnosticTimer = 0, measureFrame = 0, preferencesSequence = 0;
+const formatBytes = bytes => (bytes / 1048576).toFixed(1) + ' MB';
+function performanceSnapshot() {
+  const sorted = perf.samples.slice().sort((a, b) => a - b);
+  return {
+    schema: 1, app: 'Doodle', build: window.__DOODLE_BUILD__ || { channel: 'performance-preview' }, version: $('#appVersion').textContent || '0.3.0',
+    runtime: navigator.userAgent, platform: nativeGraphics?.platform || navigator.platform,
+    display: { logical: [stage.clientWidth, stage.clientHeight], pixels: [view.width, view.height], systemDpr: DPR(), displayDpr: displayDpr(), quality: S.performanceMode },
+    graphics: nativeGraphics, graphicsStatusUnavailable: graphicsError,
+    document: { width: doc.W, height: doc.H, layers: allLayers().length },
+    history: { undo: undoStack.length, redo: redoStack.length, bytes: historyBytes(), maxSteps: S.historySteps, maxMiB: S.historyMemory },
+    rendering: { sceneFrames: perf.scenes, overlayFrames: perf.overlays, cpuP50ms: sorted.length ? sorted[Math.floor(sorted.length * .5)] : null, cpuP95ms: sorted.length ? sorted[Math.min(sorted.length - 1, Math.floor(sorted.length * .95))] : null, contextLosses: perf.contextLosses, longTasks: perf.longTasks, presentationTest: perf.lastTest },
+    liquify: { active: liquify ? { ...liquify.info, ending: liquify.ending, inputEvents: liquify.events, elapsedMs: performance.now() - liquify.started } : null, lastStroke: lastLiquify },
+    recovery: { encoded: recovery.stats.encoded, committed: recovery.stats.committed, failures: recovery.state?.failures || 0, nextAttempt: recovery.state?.nextAttempt || 0 },
+  };
+}
+function refreshDiagnostics() {
+  if (openModal?.id !== 'mPerformance') return;
+  const data = performanceSnapshot(), r = data.rendering;
+  $('#historyUsage').textContent = t('Desfazer: ') + data.history.undo + ' · ' + t('Refazer: ') + data.history.redo + '\n' + t('Memória retida (estimada): ') + formatBytes(data.history.bytes) + ' / ' + S.historyMemory + ' MB';
+  $('#diagnosticStatus').textContent =
+    t('Prévia: ') + view.width + ' × ' + view.height + ' · DPR ' + displayDpr().toFixed(2) + '\n' +
+    t('Pinturas do documento: ') + r.sceneFrames + ' · ' + t('Sobreposições: ') + r.overlayFrames + '\n' +
+    t('Pintura CPU (mediana / p95): ') + (r.cpuP50ms ?? 0).toFixed(2) + ' / ' + (r.cpuP95ms ?? 0).toFixed(2) + ' ms\n' +
+    t('Perdas de contexto: ') + r.contextLosses + ' · ' + t('Tarefas longas: ') + r.longTasks +
+    (r.presentationTest ? '\n' + t('Intervalo entre quadros (mediana / p95): ') + r.presentationTest.p50ms.toFixed(2) + ' / ' + r.presentationTest.p95ms.toFixed(2) + ' ms' : '');
+}
+async function refreshStorageUsage() {
+  const sequence = preferencesSequence;
+  $('#storageUsage').textContent = t('Calculando espaço…');
+  try {
+    const usage = await recovery.usage();
+    if (sequence !== preferencesSequence || openModal?.id !== 'mPerformance') return;
+    $('#storageUsage').textContent = formatBytes(usage.bytes) + ' / ' + S.recoveryLimit + ' MB · ' + usage.sessions + t(' desenhos com cópias');
+    if (navigator.storage?.estimate && !TAURI) {
+      const estimate = await navigator.storage.estimate();
+      if (sequence === preferencesSequence && openModal?.id === 'mPerformance' && estimate.quota) $('#storageUsage').textContent += '\n' + t('Cota disponível neste navegador: ') + formatBytes(estimate.quota);
+    }
+  } catch (_) { $('#storageUsage').textContent = t('Não foi possível consultar o espaço.'); }
+}
+function showPreferenceTab(tab) {
+  if (!['graphics', 'history', 'storage', 'diagnostics'].includes(tab)) tab = 'graphics';
+  document.querySelectorAll('[data-pref-tab]').forEach(button => { const selected = button.dataset.prefTab === tab; button.setAttribute('aria-selected', String(selected)); button.tabIndex = selected ? 0 : -1; $('#panel-' + button.dataset.prefTab).hidden = !selected; });
+  refreshDiagnostics();
+  if (tab === 'storage') void refreshStorageUsage();
+}
+function updateGraphicsStatus() {
+  $('#prefHardware').disabled = !nativeGraphics?.supported;
+  $('#prefHardware').value = nativeGraphics?.requested || 'auto';
+  $('#graphicsStatus').textContent = nativeGraphics?.supported
+    ? t('Modo desta sessão: ') + t(nativeGraphics.applied === 'software' ? 'Compatibilidade' : 'Automática (GPU)') + '. ' + t('A mudança entra em vigor ao fechar e abrir o aplicativo.') + ' ' + t(nativeGraphics.platform === 'linux' ? 'Compatibilidade desativa a composição acelerada no Linux.' : 'Compatibilidade desativa a aceleração gráfica do WebView no Windows.') + (nativeGraphics.externalOverride ? ' ' + t('Há configurações gráficas externas ao aplicativo.') : '')
+    : t(graphicsError ? 'Não foi possível consultar o modo gráfico do aplicativo.' : 'A aceleração é gerenciada pelo navegador nesta plataforma.');
+}
+async function showPerformance(tab = 'graphics') {
+  if (!['graphics', 'history', 'storage', 'diagnostics'].includes(tab)) tab = 'graphics';
+  if (liquify) await finishLiquify();
+  if (stroke || saving || recovery.busyUI) return;
+  if (tf) applyTransform();
+  preferencesSequence++; closeSettingsMenu(); showModal('#mPerformance');
+  const values = { prefProfile: S.performanceMode, prefSteps: S.historySteps, prefHistoryMemory: S.historyMemory, prefCacheMemory: S.cacheMemory, prefRecoveryLimit: S.recoveryLimit, prefRecoveryInterval: S.recoveryInterval, prefVersions: S.recoveryVersions };
+  for (const [id, value] of Object.entries(values)) $('#' + id).value = value;
+  showPreferenceTab(tab); $('#tab-' + tab).focus();
+  clearInterval(diagnosticTimer); diagnosticTimer = setInterval(refreshDiagnostics, 1000);
+  updateGraphicsStatus();
+  if (TAURI?.core?.invoke) {
+    try { nativeGraphics = await TAURI.core.invoke('graphics_preferences'); graphicsError = false; }
+    catch (_) { graphicsError = true; }
+    updateGraphicsStatus();
+  }
+}
+function stopDiagnostics() { clearInterval(diagnosticTimer); cancelAnimationFrame(measureFrame); measureFrame = 0; $('#prefMeasure').disabled = false; }
+document.querySelectorAll('[data-performance]').forEach(b => b.addEventListener('click', () => { void showPerformance(b.dataset.performance); }));
+document.querySelectorAll('[data-pref-tab]').forEach(b => b.addEventListener('click', () => showPreferenceTab(b.dataset.prefTab)));
+$('.pref-tabs').addEventListener('keydown', e => {
+  const tabs = [...document.querySelectorAll('[data-pref-tab]')], i = tabs.indexOf(document.activeElement);
+  if (i < 0) return;
+  const next = e.key === 'ArrowRight' ? (i + 1) % tabs.length : e.key === 'ArrowLeft' ? (i + tabs.length - 1) % tabs.length : e.key === 'Home' ? 0 : e.key === 'End' ? tabs.length - 1 : -1;
+  if (next >= 0) { e.preventDefault(); tabs[next].focus(); showPreferenceTab(tabs[next].dataset.prefTab); }
+});
+$('#mPerformance').addEventListener('keydown', e => {
+  if (e.key !== 'Tab') return;
+  const controls = [...$('#mPerformance').querySelectorAll('button,input,select')].filter(x => !x.disabled && x.tabIndex >= 0 && x.getClientRects().length);
+  if (!controls.length) return;
+  const first = controls[0], last = controls.at(-1);
+  if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+  else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+});
+$('#prefProfile').addEventListener('change', e => { S.performanceMode = e.target.value; perf.autoScale = 2; perf.slow = 0; releaseRenderCaches(); resizeRenderSurfaces(); saveSettingsSoon(); });
+for (const [id, key, min, max] of [['prefSteps','historySteps',1,500],['prefHistoryMemory','historyMemory',32,1024],['prefCacheMemory','cacheMemory',0,512],['prefVersions','recoveryVersions',1,10]]) {
+  $('#' + id).addEventListener('change', e => {
+    const value = Number(e.target.value); if (!Number.isFinite(value)) { e.target.value = S[key]; return; }
+    S[key] = clamp(Math.round(value), min, max); e.target.value = S[key];
+    if (key === 'cacheMemory') { releaseRenderCaches(); requestRender(); }
+    if (key.startsWith('history')) trimHistory();
+    refreshDiagnostics(); saveSettingsSoon();
+  });
+}
+for (const [id, key] of [['prefRecoveryLimit','recoveryLimit'],['prefRecoveryInterval','recoveryInterval']]) $('#' + id).addEventListener('change', e => { S[key] = Number(e.target.value); recovery.retry(); saveSettingsSoon(); void refreshStorageUsage(); });
+$('#prefHardware').addEventListener('change', async e => {
+  const mode = e.target.value; e.target.disabled = true;
+  try { await TAURI.core.invoke('set_graphics_preference', { mode }); nativeGraphics.requested = mode; }
+  catch (_) { toast(t('Não foi possível salvar o modo gráfico.'), 4500); }
+  finally { updateGraphicsStatus(); }
+});
+$('#prefReleaseCaches').addEventListener('click', () => { releaseRenderCaches(); requestRender(); refreshDiagnostics(); toast(t('Caches liberados.')); });
+$('#prefClearHistory').addEventListener('click', async () => {
+  closeModal();
+  if (await confirmBox(t('Limpar histórico?'), t('Os passos de desfazer e refazer serão removidos. O desenho atual será mantido.'), t('Limpar histórico'))) { undoStack = []; redoStack = []; updateHistoryButtons(); }
+  void showPerformance('history');
+});
+$('#prefManageRecovery').addEventListener('click', () => { closeModal(); void recovery.show(); });
+$('#prefRetryRecovery').addEventListener('click', () => { recovery.retry(); closeModal(); void recovery.run().then(() => showPerformance('storage')); });
+$('#prefMeasure').addEventListener('click', () => {
+  const intervals = []; let previous = 0, start = 0; $('#prefMeasure').disabled = true;
+  function frame(time) {
+    if (openModal?.id !== 'mPerformance') { stopDiagnostics(); return; }
+    if (!start) start = time;
+    if (previous) intervals.push(time - previous); previous = time;
+    if (time - start < 3000) { measureFrame = requestAnimationFrame(frame); return; }
+    intervals.sort((a,b) => a-b); perf.lastTest = { frames: intervals.length, p50ms: intervals[Math.floor(intervals.length * .5)] || 0, p95ms: intervals[Math.floor(intervals.length * .95)] || 0 };
+    measureFrame = 0; $('#prefMeasure').disabled = false; refreshDiagnostics();
+  }
+  measureFrame = requestAnimationFrame(frame);
+});
+$('#prefExportDiagnostic').addEventListener('click', async () => {
+  try { await writeOut(new TextEncoder().encode(JSON.stringify(performanceSnapshot(), null, 2)), 'Doodle-diagnostic.json', 'json', null); }
+  catch (_) { toast(t('Não foi possível salvar o diagnóstico.'), 4500); }
+});
+
 /* Início: abre direto num desenho em branco, com o último pincel usado */
 loadKeys();
 applyPin();
@@ -4116,7 +4578,7 @@ if (TAURI && TAURI.core) {
   }).catch((e) => console.warn(e));
 }
 
-window.__doodle = { doc, S, buildOra, loadOra, buildPsd, compositeCanvas, recovery, afterDocChange, undo, redo, runAction, applyLasso, startTransform, applyTransform,
+window.__doodle = { finishLiquify, get liquify() { return liquify; }, showPerformance, performanceSnapshot, perf, historyBytes, trimHistory, requestRender, requestOverlayRender, releaseRenderCaches, resizeRenderSurfaces, updateThumb, newDocument, get history() { return { undo: undoStack.length, redo: redoStack.length, bytes: historyBytes() }; }, doc, S, buildOra, loadOra, buildPsd, compositeCanvas, recovery, afterDocChange, undo, redo, runAction, applyLasso, startTransform, applyTransform,
   get tf() { return tf; }, get selection() { return selection; }, allLayers, flatten, targetLayers, selectOnly, renderLayers, clickRow, moveNodesTo, toDocXY, docToScreen,
   setTfMode, tfUndo, openTfMenu, toNewLayers, invertSelection, get rot() { return S.rot; } };
 void recovery.start();

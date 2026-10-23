@@ -1,0 +1,110 @@
+name: Canvas performance test installer
+
+on:
+  push:
+    branches: [test/performance-canvas]
+    paths:
+      - 'src/**'
+      - 'src-tauri/**'
+      - 'tests/native-performance-smoke.cjs'
+      - '.github/workflows/performance-test.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: performance-test-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  windows-test-installer:
+    if: github.ref == 'refs/heads/test/performance-canvas'
+    runs-on: windows-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: swatinem/rust-cache@v2
+        with:
+          workspaces: './src-tauri -> target'
+          cache-on-failure: true
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install build and test tooling
+        shell: pwsh
+        run: |
+          npm install -g @tauri-apps/cli@^2
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          npm install --prefix "$env:RUNNER_TEMP/doodle-test-tools" --ignore-scripts playwright
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Build the separate Windows test installer
+        shell: pwsh
+        run: |
+          $build = @{ channel = 'performance-liquify-worker-v1'; revision = $env:GITHUB_SHA } | ConvertTo-Json -Compress
+          "window.__DOODLE_BUILD__ = $build;" | Set-Content -LiteralPath 'src/build-info.js' -Encoding utf8
+          tauri build --ci --bundles nsis --config src-tauri/tauri.performance.conf.json
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Smoke test the real Windows app
+        shell: pwsh
+        run: |
+          $env:NODE_PATH = "$env:RUNNER_TEMP/doodle-test-tools/node_modules"
+          $env:DOODLE_NATIVE_EXE = (Resolve-Path 'src-tauri/target/release/doodle.exe').Path
+          node tests/native-performance-smoke.cjs
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Prepare public download and checksum
+        shell: pwsh
+        run: |
+          $installers = @(Get-ChildItem -LiteralPath 'src-tauri/target/release/bundle/nsis' -Filter '*-setup.exe')
+          if ($installers.Count -ne 1) { throw 'Expected exactly one Windows installer' }
+          New-Item -ItemType Directory -Path 'test-download' -Force | Out-Null
+          $target = 'test-download/Doodle-Performance-Test-Windows-x64-setup.exe'
+          Copy-Item -LiteralPath $installers[0].FullName -Destination $target
+          $hash = (Get-FileHash -LiteralPath $target -Algorithm SHA256).Hash.ToLowerInvariant()
+          "$hash  Doodle-Performance-Test-Windows-x64-setup.exe" | Set-Content -LiteralPath 'test-download/SHA256SUMS.txt' -Encoding utf8
+          Copy-Item -LiteralPath 'PERFORMANCE-TESTING.md' -Destination 'test-download/PERFORMANCE-TESTING.md'
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Doodle-Performance-Test-Windows-x64
+          path: test-download/*
+          if-no-files-found: error
+      - name: Publish a test-only prerelease with a direct download
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const path = require('path');
+            const { owner, repo } = context.repo;
+            const tag = `performance-canvas-${context.runId}-${process.env.GITHUB_RUN_ATTEMPT}`;
+            const body = [
+              'Experimental Windows x64 build with sparse GPU/worker Liquify and a cooperative CPU fallback.',
+              '',
+              'Download and run **Doodle-Performance-Test-Windows-x64-setup.exe** below.',
+              'It installs as **Doodle Performance Test**, separately from stable Doodle, with independent settings/recovery, no ORA file association and no automatic updater.',
+              '',
+              'Please test Liquify Push with fast strokes, including 4K and 8000 x 8000 canvases and the 500 px brush. Check selection, transparent edges and undo/redo. Save a diagnostic AFTER the slow stroke; it now includes Liquify backend, timings, queue and source revision.',
+              '',
+              'Known issues retained from the test snapshot: selection action bar may be stale; copying between documents loses the internal clipboard. See PERFORMANCE-TESTING.md for details.',
+              '',
+              'Native Windows smoke checks passed: startup, isolated identity, updater absence, canvas input/undo/redo, extreme native Liquify at 4K and 8000 x 8000, ORA round trip and graphics preference after restart. Physical tablet feel and affected hardware still need testers.',
+              '',
+              `Source: ${context.sha} on test/performance-canvas.`,
+              `Build: https://github.com/${owner}/${repo}/actions/runs/${context.runId}`,
+              '',
+              'This prerelease does not replace the stable release or publish latest.json.',
+            ].join('\n');
+            const { data: release } = await github.rest.repos.createRelease({
+              owner, repo, tag_name: tag, target_commitish: context.sha,
+              name: 'Doodle — Liquify performance test (Windows)',
+              body, draft: true, prerelease: true, make_latest: 'false',
+            });
+            for (const file of fs.readdirSync('test-download')) {
+              const data = fs.readFileSync(path.join('test-download', file));
+              await github.rest.repos.uploadReleaseAsset({ owner, repo, release_id: release.id, name: file, data });
+            }
+            const { data: published } = await github.rest.repos.updateRelease({
+              owner, repo, release_id: release.id, draft: false, prerelease: true, make_latest: 'false',
+            });
+            core.notice(`Test installer: ${published.html_url}`);
+            await core.summary.addLink('Download the Windows performance test installer', published.html_url).write();

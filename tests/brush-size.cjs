@@ -1,12 +1,12 @@
 // Run with Node.js, Playwright and Chrome; DOODLE_BROWSER=msedge checks Edge.
-const { chromium } = require('playwright');
+const { launch } = require('./browser.cjs');
 const assert = require('node:assert/strict');
 const { pathToFileURL } = require('node:url');
 const path = require('node:path');
 const { createHash } = require('node:crypto');
 
 (async () => {
-  const browser = await chromium.launch({ channel: process.env.DOODLE_BROWSER || 'chrome', headless: true });
+  const browser = await launch();
   const hashes = [];
   try {
     for (const dpr of [1, 1.5, 2]) {

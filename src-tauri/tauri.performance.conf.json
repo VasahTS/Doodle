@@ -1,0 +1,28 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "Doodle Performance Test",
+  "identifier": "com.daniel.doodle.performance-test",
+  "app": {
+    "windows": [
+      {
+        "label": "main",
+        "title": "Doodle Performance Test",
+        "width": 1280,
+        "height": 820,
+        "minWidth": 820,
+        "minHeight": 520,
+        "center": true,
+        "dragDropEnabled": false
+      }
+    ]
+  },
+  "bundle": {
+    "targets": ["nsis"],
+    "shortDescription": "Experimental canvas performance test build",
+    "fileAssociations": [],
+    "createUpdaterArtifacts": false
+  },
+  "plugins": {
+    "updater": { "endpoints": [] }
+  }
+}

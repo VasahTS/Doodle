@@ -1,10 +1,10 @@
-const { chromium } = require('playwright');
+const { launch } = require('./browser.cjs');
 const assert = require('node:assert/strict');
 const path = require('node:path');
 const { pathToFileURL } = require('node:url');
 
 (async () => {
-  const browser = await chromium.launch({ channel: process.env.DOODLE_BROWSER || 'chrome', headless: true });
+  const browser = await launch();
   try {
     const page = await browser.newPage({ viewport: { width: 1366, height: 768 } });
     const url = pathToFileURL(path.join(__dirname, '../src/index.html')).href, errors = [];

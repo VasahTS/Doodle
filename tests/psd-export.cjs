@@ -1,6 +1,6 @@
 // Test dependency only: npm install --no-save --ignore-scripts ag-psd
 // Alternatively set PSD_READER_PATH to an external installation of ag-psd.
-const { chromium } = require('playwright');
+const { launch } = require('./browser.cjs');
 const assert = require('node:assert/strict');
 const path = require('node:path');
 const fs = require('node:fs');
@@ -11,7 +11,7 @@ ag.initializeCanvas(() => { throw new Error('Unexpected canvas allocation'); },
 const read = bytes => ag.readPsd(Uint8Array.from(bytes), { useImageData: true, throwForMissingFeatures: true });
 
 (async () => {
-  const browser = await chromium.launch({ channel: process.env.DOODLE_BROWSER || 'chrome', headless: true });
+  const browser = await launch();
   try {
     const page = await browser.newPage({ acceptDownloads: true }), errors = [];
     page.on('pageerror', e => errors.push(e.message));
