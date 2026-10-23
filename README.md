@@ -14,6 +14,7 @@ Built with [Tauri](https://tauri.app) (Rust underneath, HTML interface). Availab
 - **Fractional brush and eraser sizes** from 0.1 to 500 px, including pen pressure below 1 px; `[` / `]` adjust sizes below 1 px in 0.1 px steps
 - **Liquify brush** (`J`): push, expand, pinch or twirl directly on the canvas, with its own size and strength, optional pen pressure, selection and alpha lock support. Hold `Alt` to reverse expand, pinch or twirl. Each stroke is one undo step.
 - **Layers and folders**, multi-select with Ctrl+click / Shift+click, drag to reorder or into folders
+- **Resizable layers panel**: drag its left edge; the width is remembered. Layer opacity is at the top, and double-clicking the edge resets the width.
 - **Lock transparent pixels** (`/`) and **clip to layer below** (`Ctrl+Alt+G`)
 - **Lasso** selection with add/subtract, a floating action bar, cut/copy to new layers across all selected layers
 - **Lasso modes in the toolbar**: new, add and subtract; hold `Shift` to add, `Ctrl` to subtract (`Alt` also subtracts). `F` fills the selection with the main color (`Alt+Backspace` also works).
@@ -21,9 +22,18 @@ Built with [Tauri](https://tauri.app) (Rust underneath, HTML interface). Availab
 - **Free transform** (`Ctrl+T`): move, scale, rotate, skew, distort, flip, with a right-click menu
 - **Canvas rotation** (hold `R` and drag, `'` resets), **drag zoom** (hold `Z`), **mirrored view** (`F1`)
 - **Every shortcut can be changed** (Settings → Shortcuts or `Ctrl+K`)
-- **Settings menu** in the top-right gear: keyboard shortcuts, language and update checks
+- **Settings menu** in the top-right gear: keyboard shortcuts, language, automatic recovery and update checks
+- **Save and exit** when closing with unsaved changes; cancelled or failed saves keep the app open
 - **Updates itself** from GitHub releases, no need to visit the repository
 - Saves **OpenRaster (.ora)**, which Krita, GIMP and MyPaint also open; exports PNG and layered **Photoshop (.psd)** files
+
+## Automatic recovery
+
+Doodle creates separate recovery copies every 30 seconds when the drawing changes, waiting for the current stroke to end. It retains three versions per drawing with a default total storage limit of 512 MB. Unchanged layer images are reused to reduce background work.
+
+After an interruption, choose **View copies** in the recovery notice, or open **Settings → Automatic recovery**. You can select a version, restore it, export an independent ORA copy or discard its recovery history. Restoring creates an unsaved drawing without reconnecting it to the original file.
+
+Desktop copies live in the app's local data directory; browser copies use IndexedDB and may be erased when browser data is cleared. Keep saving normal ORA files: recovery covers the last completed copy and does not guarantee protection against power or disk failure.
 
 ## Export to Photoshop
 

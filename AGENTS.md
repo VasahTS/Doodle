@@ -10,6 +10,7 @@
 - Desenha com mesa digitalizadora (caneta com pressão) e está acostumado com **Clip Studio Paint** e **Photoshop**. Quando ele pedir um recurso "igual ao Clip Studio", siga o comportamento do Clip Studio.
 - Prefere mudanças **evolutivas, não revolucionárias**: manter o layout atual e refinar. Ele rejeitou layouts radicais (tela livre, menu radial).
 - A visão do app: **rápido, abrir e já rabiscar**, sem virar um editor de imagem pesado.
+- **Trabalhe localmente por padrão.** Só envie mudanças ao GitHub ou publique versões quando o Daniel pedir explicitamente; ele esclareceu isso após a versão 0.2.1.
 
 ## O que é o app
 
@@ -28,6 +29,7 @@ Doodle é um app de desenho leve para rabiscar. Desktop, open source (licença M
 - Pincel e borracha de **0,1 a 500 px**, com passos de 0,1 abaixo de 1 px; pressão pode afinar abaixo de 1 px.
 - **Liquify** (`J`) como pincel na tela: empurrar, expandir, contrair e girar; tamanho/força próprios, pressão na força, Alt inverte os modos radiais e cada passada tem um único desfazer.
 - **Camadas e pastas**, seleção múltipla (Ctrl+clique, Shift+clique), arrastar para reordenar ou para dentro de pastas, opacidade e visibilidade.
+- **Versão 0.3.0:** opacidade no topo do painel de camadas; borda esquerda redimensionável com largura persistente. Dois cliques restauram 280 px; setas ajustam a largura quando a borda está em foco; Esc cancela o arraste.
 - **Travar pixels transparentes** (`/`), igual ao "Lock transparent pixels" do Clip Studio: o pincel e o balde não vazam para fora do desenho, e a borracha fica bloqueada.
 - **Prender na camada de baixo** (`Ctrl+Alt+G`), igual ao "Clip to layer below": a camada só aparece onde a base tem desenho.
 - **Laço** (`L`): botões Nova/Somar/Subtrair; **Shift soma, Ctrl subtrai** (Alt também subtrai). Ctrl+Z desfaz cada passo. O pontilhado é gerado da máscara final e guardado em cache, sem desenhar contornos sobrepostos. Uma barra flutuante aparece embaixo da seleção (tirar, inverter, transformar, recortar ou copiar para camada nova, apagar dentro ou fora, preencher).
@@ -37,6 +39,8 @@ Doodle é um app de desenho leve para rabiscar. Desktop, open source (licença M
 - **Configurações** na engrenagem do canto superior direito: idioma, atalhos e procura de atualizações. **Todos os atalhos podem ser trocados** (Configurações → Atalhos ou Ctrl+K). Ficam salvos.
 - Arquivos **.ora** (OpenRaster, abrem no Krita e no GIMP), com pastas, trava e recorte. Exporta PNG e **PSD com camadas** pelo menu Arquivo. Abre PNG/JPG e cola imagens da área de transferência; ainda não importa PSD.
 - **Atualização automática** pelas releases do GitHub (veja "Publicar uma versão").
+- **Versão 0.3.0:** fechar o app com alterações oferece **Salvar e sair / Sair sem salvar / Cancelar**. Só destrua a janela após `save(false)` retornar `true`; cancelamento/erro mantém o app aberto. Uma gravação em andamento bloqueia o fechamento para não interromper o arquivo.
+- **Versão 0.3.0:** recuperação automática a cada 30 s, 3 versões por desenho e limite padrão de 512 MB. Configurações → Recuperação automática permite restaurar, salvar cópia .ora, escolher versão/intervalo/limite e descartar cópias. O aviso na abertura não bloqueia o desenho.
 
 ## Arquitetura
 
@@ -82,6 +86,7 @@ O script é um IIFE só, dividido em seções com comentários `/* ===== Nome ==
 | Ponteiro | eventos `pointerdown/move/up` com `getCoalescedEvents`, ponta borracha da caneta, mão, zoom com Z, girar com R |
 | Ferramentas e opções | `setTool`, `setOptsMode`, ajustes por ferramenta, dock, balão de ajustes, paleta |
 | Arquivo .ora | zip feito à mão (`zipStore`, `unzip`, `crc32`, inflate via `DecompressionStream`), `buildOra`, `loadOra` |
+| Recuperação automática | `recovery`: PNGs imutáveis por SHA-256, manifestos de 3 versões, cache por `pixelVersion`, arquivos AppLocalData no app e IndexedDB no navegador, validação e interface de recuperação |
 | Exportação PSD | `PsdBytes`, `psdChannel` (PackBits por linha), `buildPsd`: camadas/pastas, tags de nomes/recorte/trava, perfil sRGB e composição RGBA |
 | Abrir e salvar | `writeOut`, `save`, `exportPng`, `exportPsd`, `openFile`, arrastar e soltar, colar imagem |
 | Janelas | novo desenho, confirmação (`confirmBox`; `alert` e `confirm` não são usados) |
@@ -105,6 +110,12 @@ O script é um IIFE só, dividido em seções com comentários `/* ===== Nome ==
 O arquivo é um zip com `mimetype` (primeiro, sem compressão), `stack.xml`, `data/layerN.png`, `mergedimage.png` e `Thumbnails/thumbnail.png`. Pastas viram `<stack>`. Atributos extras que só o Doodle lê: `alpha-preserve="true"` (trava) e `clip-to-below="true"` (recorte). Outros programas ignoram esses atributos.
 
 ## Como testar
+
+- `node tests/recovery.cjs` verifica IndexedDB real e arquivos temporários reais via simulação da API Tauri: crash/reabertura, publicação interrompida, PNG corrompido, versão anterior, limite de espaço, exportação .ora, metadados, scheduler, caneta, edição concorrente e cache de camadas. O sandbox do Windows pode bloquear rename; nesse caso execute o teste autorizado fora dele.
+- Recuperação não usa `buildOra()` a cada intervalo: guarda PNGs das camadas alteradas e publica um manifesto só quando suas referências estão gravadas. Não remova `pixelVersion` de `updateThumb` sem substituir a invalidação. Até 2 camadas pendentes são capturadas no mesmo turno; para mais camadas, o cache é preparado sequencialmente e uma geração alterada não é publicada. PNGs usam SHA-256; manifestos novos usam CRC32, mantendo leitura das primeiras cópias locais sem esse campo.
+- Arquivos ficam em `AppLocalData/recovery-v1/<uuid>/`: `p-<sha256>.png`, `v-<timestamp>-<revision>.json` e `ack.json`. Temporários `.tmp` nunca entram na lista recuperável. GC fica restrito à sessão do documento, mantendo 3 versões e seus PNGs; não limpa outros desenhos automaticamente. Se atingir o limite, avisa e mantém as versões anteriores.
+- Salvar manualmente ou escolher sair sem salvar reconhece as versões daquela sessão para não oferecer recuperação novamente na abertura; cópias continuam disponíveis nas configurações até descarte explícito. Recuperar sempre cria um documento sem vínculo ao original. Uma cópia corrompida pode cair para uma anterior após verificar os hashes.
+- No navegador as cópias usam IndexedDB e podem ser apagadas ao limpar os dados. Proteção de processo não equivale a garantia de durabilidade contra falha de energia/disco: o plugin fs não força `fsync`.
 
 - **PSD:** exportação somente, RGB de 8 bits. O `.ora` continua sendo o formato nativo. A opacidade das pastas é distribuída nas camadas de base (não nas camadas presas), e as pastas do PSD ficam em 100%, pois a composição por pasta do Photoshop difere do `flatten()` do Doodle. Não aplique o fator duas vezes. Pixels de cada camada continuam intactos; a prévia usa o branco sob o alfa exigido pelo PSD.
 - `tests/psd-export.cjs` usa Playwright e `ag-psd` externos ao app. `tests/psd-composite.py` usa `psd-tools` para reconstruir a composição sem aproveitar a prévia do PSD. Veja `tests/README.md`.
@@ -140,5 +151,6 @@ Também funciona enviando uma tag `vX.Y.Z` ou rodando o workflow pela aba Action
 - **Codex (OpenAI)** implementou e documentou a sessão de **22/10/2026**, preparada para a versão **0.2.0**: Liquify, tamanhos fracionários, melhorias no laço/contorno, atalhos F e Backspace, configurações, testes e publicação.
 - Registro completo: [docs/sessions/2026-10-22-codex.md](docs/sessions/2026-10-22-codex.md).
 - **Codex (OpenAI)** adicionou a exportação PSD na versão **0.2.1**, com escritor integrado, pastas/camadas editáveis e verificação por dois leitores independentes. Importação PSD continua pendente.
+- Daniel autorizou explicitamente a compilação e publicação da **0.3.0**, com recuperação automática, painel redimensionável e salvar ao sair. Mudanças futuras continuam locais até nova autorização.
 - Changelog em inglês: [CHANGELOG.md](CHANGELOG.md).
 - Ideias futuras solicitadas pelo Daniel, ainda pendentes: [future-additions/README.md](future-additions/README.md).

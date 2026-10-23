@@ -23,6 +23,28 @@ engrenagem **Configurações**, no canto superior direito, e escolha em **Idioma
 O mesmo menu reúne **Atalhos** e **Procurar atualizações**. No navegador, a procura
 de atualizações fica desativada; ela funciona no aplicativo instalado.
 
+## Recuperação automática
+
+O Doodle guarda cópias de recuperação a cada **30 segundos**, quando há mudanças,
+esperando terminar o traço em andamento. São mantidas **três versões por desenho**,
+com um limite total inicial de **512 MB**. As cópias não substituem o arquivo original
+e não dispensam salvar seu `.ora` normalmente.
+
+Após uma interrupção, aparece **Há desenhos com cópias de recuperação → Ver cópias**.
+Você pode escolher uma versão, **Recuperar** para continuar, **Salvar cópia .ora**
+sem alterar o documento aberto, ou **Descartar cópias**. Um desenho recuperado abre
+como não salvo, sem vínculo com o arquivo original.
+
+Em **Configurações → Recuperação automática**, ajuste o intervalo ou o limite de espaço.
+Desativar não apaga cópias já existentes. Se faltar espaço ou falhar a gravação, o app
+avisa e preserva as versões concluídas. Camadas intactas são reutilizadas para reduzir
+o trabalho em segundo plano. Uma primeira cópia de desenhos grandes pode demorar mais.
+
+No app, as cópias ficam na pasta de dados locais indicada nas configurações. No
+navegador, ficam no armazenamento do navegador e podem ser apagadas ao limpar os dados.
+É possível perder o trabalho posterior à última cópia concluída; falhas de energia
+ou do disco não têm garantia absoluta de recuperação.
+
 ## Exportar para Photoshop
 
 Abra **Arquivo → Exportar PSD** e escolha onde salvar. O arquivo mantém camadas

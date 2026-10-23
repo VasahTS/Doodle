@@ -2,7 +2,17 @@
 
 Install Playwright in a separate tools folder or expose an existing installation through `NODE_PATH`. No build dependencies are added to Doodle.
 
-Run all eight suites with `node tests/run.cjs`. Set `DOODLE_BROWSER=msedge` to run the browser checks in Edge. The release metadata suite only needs Node.js. The PSD suite also needs the external test dependency described below.
+Run all ten suites with `node tests/run.cjs`. Set `DOODLE_BROWSER=msedge` to run the browser checks in Edge. The release metadata suite only needs Node.js. The PSD suite also needs the external test dependency described below.
+
+# Automatic recovery checks
+
+Run `node tests/recovery.cjs`. It uses real browser IndexedDB and a Tauri API bridge backed by real temporary files. It checks immutable PNG sharing, three retained versions, unchanged-layer encoding reuse, preservation of the original save target, interrupted manifest publication, restart, SHA-256 corruption detection, older-version fallback, folder state and Unicode, independent ORA export, storage limits, disabled autosave, settings persistence, acknowledgment and explicit discard. A real timer/pen test checks deferred saves; a canvas encoder hook changes the drawing during compression and verifies the older snapshot stays consistent while newer edits remain dirty.
+
+The native bridge writes only to a newly created temporary directory, validates every resolved path, then removes that directory. New manifests are also checked for CRC32 metadata corruption. Windows sandbox restrictions may require authorized execution outside the sandbox for file renames. `DOODLE_BROWSER=msedge` selects Edge. Actual Tauri permission enforcement and process/power-loss testing still require a native build; these checks do not claim fsync-level durability.
+
+# Save on close checks
+
+Run `node tests/close-save.cjs`. A local Tauri window/dialog/filesystem stub checks the three close choices, Cancel/Escape/outside clicks, save cancellation and errors, complete ORA writes before exit, round-trip recovery of saved pixels, existing paths, protection against duplicate closes and interruption of ongoing saves, two-choice confirmations and English text. It does not close the real app or write user files. `DOODLE_SCREENSHOT` optionally saves the prompt. Native window-manager testing still needs the installed app.
 
 Run `node tests/liquify.cjs` with Chrome installed. Set `DOODLE_BROWSER=msedge` to check Edge instead. Set `DOODLE_SCREENSHOT` to an absolute PNG path to save a preview.
 

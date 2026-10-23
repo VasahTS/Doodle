@@ -1,5 +1,34 @@
 # Changelog
 
+## [0.3.0] - 2026-10-22
+
+Implemented and documented by **Codex (OpenAI)** at Daniel's request.
+
+### Added
+
+- Automatic crash recovery, enabled by default every 30 seconds, with three retained versions per drawing and shared immutable PNGs for unchanged layers.
+- Desktop recovery files in AppLocalData, with temporary writes and rename-on-completion manifests; browser recovery uses IndexedDB transactions. Neither overwrites the original drawing.
+- Recovery settings, previews, version selection, restore, independent ORA-copy export, explicit discard, adjustable intervals and a storage limit (512 MB by default).
+- SHA-256 pixel-file validation, CRC32 manifest checks and fallback to an earlier complete version after incomplete or corrupted writes. Autosave waits for stroke completion, yields between layer encodes and captures up to two changed layers together while drawing continues.
+- Regression checks for real temporary-file storage, browser persistence, interrupted publication, corrupt PNGs, storage exhaustion, timer/pen interaction, concurrent editing and unchanged-layer encoding reuse.
+- Save and exit in the desktop close prompt, alongside Cancel and Exit without saving. Cancelled or failed saves keep the app open; closing waits for successful ORA writes and cannot interrupt an in-progress save.
+
+### Changed
+
+- Layer opacity controls now sit above the layer list.
+- The layers panel can be resized by dragging its left edge, with persistent width, window-size limits, keyboard adjustment, Escape to cancel and double-click to reset.
+
+### Fixed
+
+- Manual saves retain the unsaved indicator when newer edits occur during file writing, and reject a changed document during ORA serialization rather than marking a mixed snapshot as saved.
+- File drops cannot replace the drawing while a modal operation or manual save is in progress.
+
+### Recovery notes
+
+- Recovery protects work up to the last completed copy; it does not replace normal ORA saves or guarantee recovery after power or disk failure.
+- Saving manually or explicitly exiting without saving acknowledges the session so it is not offered again on startup. Retained copies remain accessible in Settings until explicitly discarded.
+- Browser recovery data can be removed when browser storage is cleared. Desktop recovery files use the app's local data directory.
+
 ## [0.2.1] - 2026-10-22
 
 Implemented and documented by **Codex (OpenAI)** at Daniel's request.

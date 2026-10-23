@@ -57,13 +57,13 @@ svg.i.s { width: 16px; height: 16px; }
 #app {
   height: 100%; display: grid;
   grid-template-rows: 40px minmax(0, 1fr);
-  grid-template-columns: minmax(0, 1fr) 280px;
+  grid-template-columns: minmax(0, 1fr) min(var(--layers-width, 280px), calc(100vw - 360px));
   grid-template-areas: "top top" "stage layers";
   padding-left: env(safe-area-inset-left, 0px); padding-right: env(safe-area-inset-right, 0px);
 }
 #app.layers-floating { grid-template-columns: minmax(0, 1fr); grid-template-areas: "top" "stage"; }
 #app.layers-floating #layers {
-  position: fixed; right: env(safe-area-inset-right, 0px); top: 40px; bottom: 0; width: min(290px, 86vw); z-index: 20;
+  position: fixed; right: env(safe-area-inset-right, 0px); top: 40px; bottom: 0; width: min(var(--layers-width, 280px), 86vw); z-index: 20;
   box-shadow: var(--shadow);
 }
 #app.layers-floating #layers:not(.open) { display: none; }
@@ -225,9 +225,13 @@ input[type=color].hidden-color { position: absolute; width: 0; height: 0; opacit
 
 /* ---------- Camadas ---------- */
 #layers {
-  grid-area: layers; display: flex; flex-direction: column; min-height: 0;
+  grid-area: layers; position: relative; display: flex; flex-direction: column; min-height: 0; min-width: 0;
   border-left: 1px solid var(--line); background: var(--panel);
 }
+#layersResize { position: absolute; left: -4px; top: 0; bottom: 0; width: 8px; z-index: 2; cursor: col-resize; touch-action: none; outline: none; }
+#layersResize::after { content: ""; position: absolute; left: 3px; top: 0; bottom: 0; width: 2px; background: transparent; }
+#layersResize:hover::after, #layersResize:focus-visible::after, .resizing-layers #layersResize::after { background: var(--accent); }
+body.resizing-layers, body.resizing-layers * { cursor: col-resize !important; }
 .panel-head { display: flex; align-items: center; gap: 8px; padding: 10px 10px 6px 14px; }
 .panel-head h2 { margin: 0; flex: 1; font-size: 13px; font-weight: 620; }
 .panel-head .count { font-size: 12px; color: var(--muted); }
@@ -275,11 +279,11 @@ input[type=color].hidden-color { position: absolute; width: 0; height: 0; opacit
 .group-spacer { width: 24px; }
 .panel-foot { border-top: 1px solid var(--line); padding: 10px 12px 10px; display: grid; gap: 8px; }
 .panel-foot .hint { line-height: 1.45; }
-.opac-row { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 8px; }
+.opac-row { display: grid; grid-template-columns: auto minmax(0, 1fr) 4ch; align-items: center; gap: 8px; padding: 4px 12px 10px; border-bottom: 1px solid var(--line); }
 .opac-row span:first-child { font-size: 12px; color: var(--muted); }
 .opac-row input { width: 100%; accent-color: var(--accent); }
-.layer-btns { display: flex; justify-content: space-between; padding: 2px 8px 8px; margin-bottom: 2px; border-bottom: 1px solid var(--line); }
-.layer-btns .btn { padding: 0; width: 30px; min-width: 30px; }
+.layer-btns { display: grid; grid-template-columns: repeat(9, minmax(0, 1fr)); padding: 2px 8px 6px; }
+.layer-btns .btn { padding: 0; width: 100%; min-width: 0; }
 
 /* ---------- Janelas ---------- */
 .modal-back {
@@ -305,6 +309,19 @@ input[type=color].hidden-color { position: absolute; width: 0; height: 0; opacit
 .pbtn.primary { background: var(--accent); color: var(--accent-fg); border-color: var(--accent); font-weight: 560; }
 .pbtn.danger { background: var(--danger); color: #fff; border-color: var(--danger); }
 .warn { color: var(--danger); font-size: 12.5px; margin: 0 0 12px; }
+#recoveryNotice { position: absolute; top: 12px; left: 12px; right: 12px; z-index: 12; padding: 10px 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); box-shadow: var(--shadow); display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+#recoveryNotice span { flex: 1; }
+#mRecovery .modal { width: min(620px, 100%); }
+.recovery-controls { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 12px; }
+.recovery-controls label { display: grid; gap: 4px; font-size: 12px; }
+.recovery-controls select { padding: 5px; border: 1px solid var(--line); border-radius: 5px; background: var(--panel); }
+#recoveryList { display: grid; gap: 10px; margin: 12px 0; }
+.recovery-item { display: grid; grid-template-columns: 72px minmax(0, 1fr); gap: 10px; border: 1px solid var(--line); border-radius: 7px; padding: 10px; }
+.recovery-item img { width: 72px; height: 60px; object-fit: contain; background: var(--work); }
+.recovery-item strong { overflow-wrap: anywhere; }
+.recovery-item select { display: block; width: 100%; margin-top: 5px; background: var(--panel); border: 1px solid var(--line); }
+.recovery-item .actions { grid-column: 1 / -1; }
+#recoveryStatus { overflow-wrap: anywhere; user-select: text; -webkit-user-select: text; }
 
 /* editor de atalhos */
 #mKeys .modal { width: min(560px, 100%); display: flex; flex-direction: column; max-height: 100%; padding-bottom: 14px; }
@@ -339,7 +356,7 @@ input[type=color].hidden-color { position: absolute; width: 0; height: 0; opacit
 
 @media (max-width: 760px) {
   #app, #app.layers-floating { grid-template-columns: minmax(0, 1fr); grid-template-areas: "top" "stage"; }
-  #layers { position: fixed; right: env(safe-area-inset-right, 0px); top: 40px; bottom: 0; width: min(290px, 86vw); z-index: 20; box-shadow: var(--shadow); }
+  #layers { position: fixed; right: env(safe-area-inset-right, 0px); top: 40px; bottom: 0; width: min(var(--layers-width, 280px), 86vw); z-index: 20; box-shadow: var(--shadow); }
   #layers:not(.open) { display: none; }
   #btnLayersToggle { display: inline-flex; }
   .btn .lbl, .brand span, .savestate, .viewinfo, #btnPin { display: none; }
@@ -377,6 +394,7 @@ input[type=color].hidden-color { position: absolute; width: 0; height: 0; opacit
   <div class="dropdown" id="settingsMenu" role="menu" aria-label="Configurações" hidden>
     <div class="menu-title">Configurações</div>
     <button class="ctx-item" id="btnKeys" role="menuitem" data-act="app.keys"><span class="ic"><svg class="i s"><use href="#i-help"/></svg></span>Atalhos<span class="kb"></span></button>
+    <button class="ctx-item" id="btnRecovery" role="menuitem"><span class="ic"><svg class="i s"><use href="#i-save"/></svg></span>Recuperação automática<span class="kb"></span></button>
     <div class="ctx-sep"></div>
     <div class="info">Idioma</div>
     <button class="ctx-item" role="menuitemradio" data-lang="pt"><span class="ck"></span>Português (Brasil)</button>
@@ -387,6 +405,7 @@ input[type=color].hidden-color { position: absolute; width: 0; height: 0; opacit
   </div>
 
   <main id="stage" class="c-none">
+    <div id="recoveryNotice" hidden role="status"><span>Há desenhos com cópias de recuperação.</span><button class="pbtn" id="recoveryShow">Ver cópias</button><button class="pbtn" id="recoveryLater">Depois</button></div>
     <canvas id="view"></canvas>
     <div id="mirrorBadge" hidden><svg class="i s"><use href="#i-compass"/></svg><span></span></div>
     <div id="dropHint" hidden>Solte para abrir</div>
@@ -499,6 +518,7 @@ input[type=color].hidden-color { position: absolute; width: 0; height: 0; opacit
   </main>
 
   <aside id="layers" aria-label="Camadas">
+    <div id="layersResize" role="separator" tabindex="0" aria-orientation="vertical" aria-label="Largura do painel de camadas" title="Arraste para ajustar a largura. Dois cliques restauram o tamanho padrão." aria-controls="layers"></div>
     <div class="panel-head">
       <h2>Camadas</h2><span class="count" id="layerCount"></span>
       <button class="btn" id="btnPin" aria-pressed="true" aria-label="Prender as camadas" title="Gaveta presa (clique para soltar)"><svg class="i s"><use href="#i-pin"/></svg></button>
@@ -514,13 +534,13 @@ input[type=color].hidden-color { position: absolute; width: 0; height: 0; opacit
       <button class="btn" id="btnDownLayer" data-act="layer.down" aria-label="Descer"><svg class="i"><use href="#i-down"/></svg></button>
       <button class="btn" id="btnDelLayer" data-act="layer.delete" aria-label="Apagar"><svg class="i"><use href="#i-trash"/></svg></button>
     </div>
+    <div class="opac-row">
+      <span>Opacidade</span>
+      <input type="range" id="layerOpacity" min="0" max="100" aria-label="Opacidade da camada">
+      <span class="val" id="layerOpacityVal"></span>
+    </div>
     <ul id="layerList"></ul>
     <div class="panel-foot">
-      <div class="opac-row">
-        <span>Opacidade</span>
-        <input type="range" id="layerOpacity" min="0" max="100" aria-label="Opacidade da camada">
-        <span class="val" id="layerOpacityVal"></span>
-      </div>
       <span class="hint" id="layerHint">O laço, o Ctrl+T e o Ctrl+E valem para todas as camadas selecionadas.</span>
     </div>
   </aside>
@@ -552,13 +572,28 @@ input[type=color].hidden-color { position: absolute; width: 0; height: 0; opacit
 </div>
 
 <div class="modal-back" id="mConfirm" hidden>
-  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="mConfirmTitle">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="mConfirmTitle" aria-describedby="mConfirmText">
     <h3 id="mConfirmTitle"></h3>
     <p id="mConfirmText"></p>
     <div class="actions">
       <button class="pbtn" id="confirmNo">Cancelar</button>
       <button class="pbtn danger" id="confirmYes"></button>
+      <button class="pbtn primary" id="confirmSave" hidden>Salvar e sair</button>
     </div>
+  </div>
+</div>
+
+<div class="modal-back" id="mRecovery" hidden>
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="recoveryTitle">
+    <h3 id="recoveryTitle">Recuperação automática</h3>
+    <p>Cópias separadas do arquivo original. Recupera até a última cópia concluída.</p>
+    <div class="recovery-controls">
+      <label><span>Intervalo</span><select id="recoveryInterval"><option value="0">Desativada</option><option value="15">15 s</option><option value="30">30 s</option><option value="60">1 min</option><option value="120">2 min</option></select></label>
+      <label><span>Espaço máximo</span><select id="recoveryLimit"><option value="256">256 MB</option><option value="512">512 MB</option><option value="1024">1 GB</option><option value="2048">2 GB</option></select></label>
+    </div>
+    <p class="hint" id="recoveryStatus" role="status"></p>
+    <div id="recoveryList"></div>
+    <div class="actions"><button class="pbtn" data-close>Fechar</button></div>
   </div>
 </div>
 
@@ -676,6 +711,8 @@ const EN = {
   'Novo desenho': 'New drawing', 'O desenho atual tem alterações não salvas. Elas serão perdidas.': 'The current drawing has unsaved changes. They will be lost.',
   'O laço, o Ctrl+T e o Ctrl+E valem para todas as camadas selecionadas.': 'Lasso, Ctrl+T and Ctrl+E apply to all selected layers.',
   'OK': 'OK', 'Opacidade': 'Opacity', 'Opacidade da camada': 'Layer opacity', 'Opções da seleção': 'Selection options', 'Pincel': 'Brush',
+  'Largura do painel de camadas': 'Layers panel width',
+  'Arraste para ajustar a largura. Dois cliques restauram o tamanho padrão.': 'Drag to resize. Double-click to restore the default width.',
   'Preencher com a cor': 'Fill with color', 'Prender na camada de baixo': 'Clip to layer below', 'Pressão muda': 'Pressure changes',
   'Quadrado 2000': 'Square 2000', 'Recortar para camada nova': 'Cut to new layer', 'Restaurar padrões': 'Restore defaults', 'Salvar': 'Save', 'Salvar como': 'Save as',
   'Sem título': 'Untitled', 'Solte para abrir': 'Drop to open', 'Subir': 'Move up', 'Tamanho': 'Size', 'Tamanho em pixels': 'Size in pixels',
@@ -693,6 +730,25 @@ const EN = {
   'Abrir mesmo assim': 'Open anyway', 'Abrir outro arquivo?': 'Open another file?', 'As alterações deste desenho serão perdidas.': 'Changes to this drawing will be lost.',
   'As alterações não salvas deste desenho serão perdidas.': 'Unsaved changes to this drawing will be lost.', 'Atalhos voltaram ao padrão.': 'Shortcuts restored to defaults.',
   'Fechar sem salvar?': 'Close without saving?', 'Fechar sem salvar': 'Close without saving',
+  'Salvar antes de sair?': 'Save before exiting?', 'Salvar e sair': 'Save and exit', 'Sair sem salvar': 'Exit without saving',
+  'Este desenho tem alterações não salvas. Deseja salvá-las antes de sair?': 'This drawing has unsaved changes. Save them before exiting?',
+  'Salvando desenho…': 'Saving drawing…', 'Não consegui fechar: ': 'Could not close: ',
+  'Recuperação automática': 'Automatic recovery', 'Há desenhos com cópias de recuperação.': 'Drawings with recovery copies are available.',
+  'Ver cópias': 'View copies', 'Depois': 'Later', 'Intervalo': 'Interval', 'Espaço máximo': 'Storage limit', 'Desativada': 'Disabled',
+  'Cópias separadas do arquivo original. Recupera até a última cópia concluída.': 'Copies are separate from the original file. Recovery covers the last completed copy.',
+  'Recuperar': 'Recover', 'Salvar cópia .ora': 'Save .ora copy', 'Descartar cópias': 'Discard copies',
+  'Nenhuma cópia de recuperação.': 'No recovery copies.', 'Cópia automática concluída: ': 'Automatic copy completed: ',
+  'Não consegui criar a cópia de recuperação: ': 'Could not create recovery copy: ',
+  'Não consegui recuperar: ': 'Could not recover: ', 'Cópia de recuperação inválida.': 'Invalid recovery copy.',
+  'O limite das cópias foi atingido. Descarte cópias antigas ou aumente o espaço nas configurações.': 'Recovery storage limit reached. Discard older copies or increase the limit in Settings.',
+  'Recuperação indisponível neste ambiente.': 'Recovery is unavailable in this environment.',
+  'As cópias ficam no armazenamento deste navegador e podem ser apagadas ao limpar os dados.': 'Copies are stored in this browser and may be erased when its data is cleared.',
+  'Descartar estas cópias?': 'Discard these copies?', 'Todas as versões de recuperação deste desenho serão apagadas.': 'All recovery versions of this drawing will be deleted.',
+  'Recuperar este desenho?': 'Recover this drawing?', 'As alterações atuais não salvas serão substituídas.': 'Current unsaved changes will be replaced.',
+  'Recuperado — salve uma cópia .ora para continuar.': 'Recovered — save an .ora copy to continue.',
+  ' (recuperado)': ' (recovered)',
+  'O desenho mudou durante o salvamento. Salve novamente após terminar o traço.': 'The drawing changed while saving. Save again after finishing the stroke.',
+  'A cópia escolhida estava incompleta. Foi usada uma versão anterior.': 'The selected copy was incomplete. An earlier version was used.',
   'Arquivo .ora danificado.': 'Damaged .ora file.', 'Compressão não suportada em ': 'Unsupported compression in ',
   'Copiado de ': 'Copied from ', 'Recortado de ': 'Cut from ', 'Recortado': 'Cut', 'Copiado': 'Copied', ' para ': ' to ', ' camada nova.': ' new layer.', ' camadas novas.': ' new layers.',
   ' camada.': ' layer.', ' camadas.': ' layers.', ' Ctrl+V cola.': ' Ctrl+V pastes.',
@@ -853,7 +909,7 @@ const DEFAULT_TOOLS = {
 const S = Object.assign({
   tool: 'brush',
   color: '#1f2430', color2: '#ffffff',
-  tolerance: 40, sampleAll: true, layersPinned: true, lassoMode: 'replace',
+  tolerance: 40, sampleAll: true, layersPinned: true, layersWidth: 280, lassoMode: 'replace', recoveryInterval: 30, recoveryLimit: 512,
 }, SAVED, {
   zoom: 1, rot: 0, panX: 0, panY: 0, flip: false,
   fileName: 'Sem título', filePath: null, fileHandle: null, dirty: false,
@@ -862,13 +918,17 @@ const S = Object.assign({
 S.tools = {};
 for (const k in DEFAULT_TOOLS) S.tools[k] = Object.assign({}, DEFAULT_TOOLS[k], (SAVED.tools || {})[k] || {});
 if (!['replace', 'add', 'sub'].includes(S.lassoMode)) S.lassoMode = 'replace';
+S.layersWidth = Number.isFinite(S.layersWidth) ? clamp(S.layersWidth, 240, 640) : 280;
+if (![0, 15, 30, 60, 120].includes(S.recoveryInterval)) S.recoveryInterval = 30;
+if (![256, 512, 1024, 2048].includes(S.recoveryLimit)) S.recoveryLimit = 512;
 function cfg(t = S.tool) { return S.tools[t] || S.tools.brush; }
 let saveTimer = 0;
 function saveSettingsSoon() {
   clearTimeout(saveTimer);
   saveTimer = setTimeout(() => store('doodle.settings', {
     tool: S.tool === 'pan' || S.tool === 'picker' ? 'brush' : S.tool, color: S.color, color2: S.color2,
-    tools: S.tools, tolerance: S.tolerance, sampleAll: S.sampleAll, layersPinned: S.layersPinned, lassoMode: S.lassoMode, lang: LANG,
+    tools: S.tools, tolerance: S.tolerance, sampleAll: S.sampleAll, layersPinned: S.layersPinned, layersWidth: S.layersWidth, lassoMode: S.lassoMode, lang: LANG,
+    recoveryInterval: S.recoveryInterval, recoveryLimit: S.recoveryLimit,
   }), 300);
 }
 
@@ -906,7 +966,7 @@ function clipBaseOf(l) {
   return null;
 }
 // Lista do que aparece na tela, de baixo para cima. Camadas presas viram "clips" da sua base.
-function flatten() {
+function flatten(root = doc.root) {
   const out = [];
   const rec = (g, a) => {
     let base = null;   // item da última camada normal (mesmo oculta) nesta pasta
@@ -918,7 +978,7 @@ function flatten() {
       if (c.visible) out.push(item);
     }
   };
-  rec(doc.root, 1);
+  rec(root, 1);
   return out;
 }
 const itemHas = (f, set) => set.has(f.layer) || f.clips.some((k) => set.has(k.layer));
@@ -943,6 +1003,7 @@ function nextName(prefix) {
 function selectOnly(n) { doc.sel = new Set([n]); doc.active = n; }
 
 function setupDoc(W, H) {
+  recovery.newDocument();
   doc.W = W; doc.H = H;
   strokeCv = mkCanvas(W, H); strokeCtx = strokeCv.getContext('2d');
   scratchCv = mkCanvas(W, H); scratchCtx = scratchCv.getContext('2d');
@@ -975,6 +1036,7 @@ function afterDocChange(dirty) {
 function refreshAll() { renderLayers(); updateHistoryButtons(); requestRender(); }
 
 function setDirty(v) {
+  if (v) recovery.changed();
   S.dirty = v;
   $('#docName').textContent = t(S.fileName);
   const st = $('#saveState');
@@ -1252,6 +1314,7 @@ function drawThumb(l) {
 const thumbQueue = new Set(); let thumbRaf = 0;
 function updateThumb(l) {
   if (l.type !== 'layer') return;
+  l.pixelVersion = (l.pixelVersion || 0) + 1;
   thumbQueue.add(l);
   if (!thumbRaf) thumbRaf = requestAnimationFrame(() => { thumbRaf = 0; thumbQueue.forEach(drawThumb); thumbQueue.clear(); });
 }
@@ -1498,13 +1561,13 @@ function paintLayer(ctx, l, alpha, op, live, pad) {
   }
 }
 let clipCv = null, clipCtx = null;
-function drawItems(ctx, items, live, pad = 0.5) {
+function drawItems(ctx, items, live, pad = 0.5, width = doc.W, height = doc.H) {
   for (const f of items) {
     if (!f.clips.length) { paintLayer(ctx, f.layer, f.alpha, 'source-over', live, pad); continue; }
     // grupo de recorte: base + camadas presas só onde a base tem desenho
-    if (!clipCv || clipCv.width !== doc.W || clipCv.height !== doc.H) { clipCv = mkCanvas(doc.W, doc.H); clipCtx = clipCv.getContext('2d'); }
+    if (!clipCv || clipCv.width !== width || clipCv.height !== height) { clipCv = mkCanvas(width, height); clipCtx = clipCv.getContext('2d'); }
     clipCtx.setTransform(1, 0, 0, 1, 0, 0); clipCtx.globalAlpha = 1; clipCtx.globalCompositeOperation = 'source-over';
-    clipCtx.clearRect(0, 0, doc.W, doc.H);
+    clipCtx.clearRect(0, 0, width, height);
     paintLayer(clipCtx, f.layer, 1, 'source-over', live, 0.5);
     for (const k of f.clips) paintLayer(clipCtx, k.layer, k.alpha, 'source-atop', live, 0.5);
     clipCtx.globalAlpha = 1; clipCtx.globalCompositeOperation = 'source-over';
@@ -2915,6 +2978,344 @@ async function importImagesAsLayers(items) {
 const isZip = (b) => b.length > 4 && b[0] === 0x50 && b[1] === 0x4b && b[2] === 3 && b[3] === 4;
 
 /* =========================================================
+   Recuperação automática: PNGs imutáveis compartilhados por três versões.
+   Só o manifesto concluído publica uma versão; temporários nunca são abertos.
+   ========================================================= */
+const recovery = (() => {
+  const enc = new TextEncoder(), dec = new TextDecoder(), uuid = () => crypto.randomUUID();
+  const keyOK = key => /^[a-f0-9-]{36}\/(?:p-[a-f0-9]{64}\.png|v-[\d-]+\.json|ack\.json)$/.test(key);
+  const stats = { encoded: 0, committed: 0 };
+  let disk = null, current = null, working = null, timer = 0, retry = 0, failure = '', warned = 0, ready = false, uiBusy = false;
+  const hash = async bytes => [...new Uint8Array(await crypto.subtle.digest('SHA-256', bytes))].map(n => n.toString(16).padStart(2, '0')).join('');
+  const pause = () => new Promise(resolve => setTimeout(resolve, 0));
+  const busy = () => stroke || liquify || lasso || tf || saving || openModal;
+  function newDocument() { current = { id: uuid(), revision: 0, lastRevision: 0, last: Date.now(), changed: Date.now(), cache: new WeakMap(), source: null }; }
+  function changed() {
+    if (!current) return;
+    current.revision++; current.changed = Date.now();
+    if (ready && S.recoveryInterval && Date.now() - current.last >= S.recoveryInterval * 1000) {
+      clearTimeout(retry);
+      retry = setTimeout(() => { void run(); }, Date.now() - current.last >= S.recoveryInterval * 1000 + 10000 ? 0 : 200);
+    }
+  }
+  async function storage() {
+    if (TAURI) {
+      if (!TAURI.path?.appLocalDataDir || !TAURI.fs?.rename) return null;
+      const fs = TAURI.fs, location = (await TAURI.path.appLocalDataDir()).replace(/[\\/]$/, '') + '/recovery-v1', sizes = new Map();
+      await fs.mkdir(location, { recursive: true });
+      const path = key => { if (!keyOK(key)) throw new Error('Invalid recovery key'); return location + '/' + key; };
+      return {
+        location,
+        async list() {
+          const out = [];
+          for (const folder of await fs.readDir(location)) {
+            if (!folder.isDirectory || !/^[a-f0-9-]{36}$/.test(folder.name)) continue;
+            for (const f of await fs.readDir(location + '/' + folder.name)) {
+              if (!f.isFile || !/^(p-[a-f0-9]{64}\.png|v-[\d-]+\.json|ack\.json)(\.[a-f0-9-]+\.tmp)?$/.test(f.name)) continue;
+              const key = folder.name + '/' + f.name;
+              if (!sizes.has(key)) sizes.set(key, (await fs.stat(location + '/' + key)).size);
+              out.push({ key, size: sizes.get(key) });
+            }
+          }
+          return out;
+        },
+        get: key => fs.readFile(path(key)),
+        async put(key, bytes) {
+          const dest = path(key), temp = dest + '.' + uuid() + '.tmp';
+          await fs.mkdir(location + '/' + key.split('/')[0], { recursive: true });
+          await fs.writeFile(temp, bytes);
+          await fs.rename(temp, dest);
+          sizes.set(key, bytes.length);
+        },
+        async del(key) {
+          // Só remove arquivos deste armazenamento; nunca usa caminho do desenho.
+          if (!/^[a-f0-9-]{36}\/(p-[a-f0-9]{64}\.png|v-[\d-]+\.json|ack\.json)(\.[a-f0-9-]+\.tmp)?$/.test(key)) throw new Error('Invalid recovery key');
+          await fs.remove(location + '/' + key);
+          sizes.delete(key);
+        },
+      };
+    }
+    if (!window.indexedDB || IN_PREVIEW || !crypto.subtle) return null;
+    const db = await new Promise((resolve, reject) => {
+      const r = indexedDB.open('doodle.recovery.v1', 1);
+      r.onupgradeneeded = () => r.result.createObjectStore('files');
+      r.onsuccess = () => resolve(r.result); r.onerror = () => reject(r.error);
+    });
+    db.onversionchange = () => db.close();
+    function transact(mode, action) {
+      return new Promise((resolve, reject) => {
+        const tx = db.transaction('files', mode), result = action(tx.objectStore('files'));
+        tx.oncomplete = () => resolve(result.result); tx.onerror = () => reject(tx.error); tx.onabort = () => reject(tx.error || new Error('Storage transaction aborted'));
+      });
+    }
+    return {
+      location: '',
+      async list() {
+        return new Promise((resolve, reject) => {
+          const tx = db.transaction('files'), out = [], r = tx.objectStore('files').openCursor();
+          r.onsuccess = () => { const c = r.result; if (c) { out.push({ key: c.key, size: c.value.byteLength }); c.continue(); } };
+          tx.oncomplete = () => resolve(out); tx.onerror = () => reject(tx.error);
+        });
+      },
+      async get(key) { const bytes = await transact('readonly', s => s.get(key)); if (!bytes) throw new Error('Recovery file missing'); return new Uint8Array(bytes); },
+      put: (key, bytes) => transact('readwrite', s => s.put(bytes, key)),
+      del: key => transact('readwrite', s => s.delete(key)),
+    };
+  }
+  function nodes(tree) { const out = []; const walkTree = xs => xs.forEach(n => { out.push(n); if (n.children) walkTree(n.children); }); walkTree(tree); return out; }
+  function valid(m, key) {
+    if (m && Object.hasOwn(m, 'checksum')) {
+      const payload = { ...m }; delete payload.checksum;
+      if (crc32(enc.encode(JSON.stringify(payload))) !== m.checksum) throw new Error(t('Cópia de recuperação inválida.'));
+    }
+    if (m?.format !== 1 || m.session !== key.split('/')[0] || !Number.isSafeInteger(m.revision) || m.revision < 1 || !Number.isFinite(m.time) || typeof m.name !== 'string' || !Array.isArray(m.tree) || !Number.isInteger(m.W) || !Number.isInteger(m.H) || m.W < 1 || m.H < 1 || m.W * m.H > 64e6) throw new Error(t('Cópia de recuperação inválida.'));
+    let count = 0, layers = 0;
+    const visit = (xs, depth) => {
+      if (depth > 128 || xs.length > 32767) throw new Error(t('Cópia de recuperação inválida.'));
+      for (const n of xs) {
+        if (++count > 32767 || !n || typeof n.name !== 'string' || !Number.isFinite(n.opacity) || n.opacity < 0 || n.opacity > 1) throw new Error(t('Cópia de recuperação inválida.'));
+        if (n.type === 'group' && Array.isArray(n.children)) visit(n.children, depth + 1);
+        else if (n.type === 'layer' && /^[a-f0-9]{64}$/.test(n.blob)) layers++;
+        else throw new Error(t('Cópia de recuperação inválida.'));
+      }
+    };
+    visit(m.tree, 0); if (!layers) throw new Error(t('Cópia de recuperação inválida.'));
+    return m;
+  }
+  async function records(session = null) {
+    if (!disk) return [];
+    const out = [];
+    for (const f of await disk.list()) {
+      if (!/\/v-[\d-]+\.json$/.test(f.key) || (session && !f.key.startsWith(session + '/'))) continue;
+      try { const m = valid(JSON.parse(dec.decode(await disk.get(f.key))), f.key); out.push({ key: f.key, meta: m }); } catch (e) { /* uma versão ruim não esconde as anteriores */ }
+    }
+    return out.sort((a, b) => a.meta.session === b.meta.session ? b.meta.revision - a.meta.revision : b.meta.time - a.meta.time);
+  }
+  async function prune(session, pins = []) {
+    const own = await records(session), keep = new Set(pins);
+    for (const r of own.slice(0, 3)) {
+      keep.add(r.key);
+      for (const n of nodes(r.meta.tree)) if (n.type === 'layer') keep.add(session + '/p-' + n.blob + '.png');
+    }
+    // Se a remoção de um manifesto falhar, não apaga nenhum PNG nesta passagem.
+    const files = (await disk.list()).filter(f => f.key.startsWith(session + '/'));
+    for (const f of files) if (/\/v-/.test(f.key) && !keep.has(f.key)) await disk.del(f.key);
+    for (const f of files) if (!/\/v-/.test(f.key) && !f.key.endsWith('/ack.json') && !keep.has(f.key)) await disk.del(f.key);
+  }
+  function status() {
+    $('#recoveryStatus').textContent = failure || (!disk ? t('Recuperação indisponível neste ambiente.') :
+      (current?.lastRevision ? t('Cópia automática concluída: ') + new Date(current.last).toLocaleTimeString() + '. ' : '') +
+      (disk.location || t('As cópias ficam no armazenamento deste navegador e podem ser apagadas ao limpar os dados.')));
+  }
+  function warn(e) {
+    failure = t('Não consegui criar a cópia de recuperação: ') + (e.message || e); status();
+    if (Date.now() - warned > 300000) { warned = Date.now(); toast(failure, 6500); }
+  }
+  async function run() {
+    if (!ready || !disk || !S.recoveryInterval || !S.dirty || !current || current.revision <= current.lastRevision || busy() || working) return false;
+    const gen = current, revision = gen.revision, W = doc.W, H = doc.H, root = doc.root;
+    const stable = () => current === gen && gen.revision === revision && doc.root === root && !busy();
+    working = (async () => {
+      try {
+        const pins = allLayers().map(n => { const c = gen.cache.get(n); return c?.version === (n.pixelVersion || 0) ? c.key : null; }).filter(Boolean);
+        await prune(gen.id, pins);
+        const files = await disk.list(), known = new Set(files.map(f => f.key)); let used = files.reduce((n, f) => n + f.size, 0);
+        const limit = S.recoveryLimit * 1024 * 1024, refs = [];
+        const capture = xs => xs.map(n => {
+          const m = { id: n.id, name: n.name, type: n.type, opacity: n.opacity, visible: n.visible, alphaLock: !!n.alphaLock, clip: !!n.clip, collapsed: !!n.collapsed };
+          if (n.type === 'group') m.children = capture(n.children);
+          else refs.push({ node: n, meta: m, version: n.pixelVersion || 0 });
+          return m;
+        });
+        if (!stable()) return false;
+        const m = { format: 1, session: gen.id, revision, time: Date.now(), name: S.fileName, W, H, tree: capture(root.children), active: doc.active?.id, selected: [...doc.sel].map(n => n.id) };
+        const missing = refs.filter(ref => { const c = gen.cache.get(ref.node); return !c || c.version !== ref.version || !known.has(c.key); });
+        // Até duas camadas alteradas: captura ambas no mesmo turno, antes de ceder
+        // a UI. A cópia continua consistente mesmo se o próximo traço começar.
+        // Acima disso, aquece o cache sequencialmente para limitar o pico de memória.
+        const sealed = missing.length <= 2;
+        const captures = sealed ? missing.map(ref => { stats.encoded++; return canvasToPng(ref.node.canvas); }) : [];
+        const preview = () => {
+          const scale = Math.min(1, 160 / W, 160 / H), thumb = mkCanvas(Math.round(W * scale), Math.round(H * scale)), ctx = thumb.getContext('2d');
+          ctx.scale(thumb.width / W, thumb.height / H); drawItems(ctx, flatten(), false, 0, W, H);
+          return thumb.toDataURL('image/png');
+        };
+        if (sealed) m.preview = preview();
+        const captured = new Map(sealed ? missing.map((ref, i) => [ref, i]) : []), pixels = sealed ? await Promise.all(captures) : [];
+        for (const ref of refs) {
+          if (!sealed && !stable()) return false;
+          let cached = gen.cache.get(ref.node);
+          if (!cached || cached.version !== ref.version || !known.has(cached.key)) {
+            // Uma camada por vez: toBlob usa o codificador do navegador e cede a UI.
+            let bytes;
+            if (sealed) bytes = pixels[captured.get(ref)];
+            else { stats.encoded++; bytes = await canvasToPng(ref.node.canvas); }
+            const digest = await hash(bytes), key = gen.id + '/p-' + digest + '.png';
+            if (!sealed && (!stable() || (ref.node.pixelVersion || 0) !== ref.version)) return false;
+            if (!known.has(key)) {
+              if (used + bytes.length > limit) throw new Error(t('O limite das cópias foi atingido. Descarte cópias antigas ou aumente o espaço nas configurações.'));
+              await disk.put(key, bytes); used += bytes.length; known.add(key);
+            }
+            cached = { version: ref.version, digest, key }; gen.cache.set(ref.node, cached);
+          }
+          ref.meta.blob = cached.digest;
+          await pause();
+        }
+        if (!sealed && !stable()) return false;
+        if (!sealed) m.preview = preview();
+        m.checksum = crc32(enc.encode(JSON.stringify(m)));
+        const bytes = enc.encode(JSON.stringify(m));
+        if (used + bytes.length > limit) throw new Error(t('O limite das cópias foi atingido. Descarte cópias antigas ou aumente o espaço nas configurações.'));
+        if (!sealed && !stable()) return false;
+        await disk.put(gen.id + '/v-' + m.time + '-' + revision + '.json', bytes);
+        gen.lastRevision = revision; gen.last = Date.now(); stats.committed++; failure = ''; status();
+        await prune(gen.id); return true;
+      } catch (e) { warn(e); return false; }
+    })();
+    try { return await working; } finally { working = null; }
+  }
+  async function acknowledge(gen = current, revision = gen?.revision) {
+    if (!disk || !gen) return;
+    try {
+      await disk.put(gen.id + '/ack.json', enc.encode(JSON.stringify({ revision })));
+      if (gen.source) await disk.put(gen.source.session + '/ack.json', enc.encode(JSON.stringify({ revision: gen.source.revision })));
+    } catch (e) { warn(e); }
+  }
+  async function materialize(key) {
+    const all = await records(), requested = all.find(r => r.key === key);
+    if (!requested) throw new Error(t('Cópia de recuperação inválida.'));
+    const candidates = all.filter(r => r.meta.session === requested.meta.session && r.meta.revision <= requested.meta.revision);
+    let lastError;
+    for (const candidate of candidates) {
+      const images = new Map();
+      try {
+        for (const n of nodes(candidate.meta.tree)) if (n.type === 'layer' && !images.has(n.blob)) {
+          const bytes = await disk.get(candidate.meta.session + '/p-' + n.blob + '.png');
+          if (await hash(bytes) !== n.blob) throw new Error(t('Cópia de recuperação inválida.'));
+          const bmp = await createImageBitmap(new Blob([bytes], { type: 'image/png' }));
+          images.set(n.blob, { bytes, bmp });
+          if (bmp.width !== candidate.meta.W || bmp.height !== candidate.meta.H) throw new Error(t('Cópia de recuperação inválida.'));
+        }
+        return { ...candidate, images, requestedRevision: requested.meta.revision };
+      } catch (e) { images.forEach(x => x.bmp.close()); lastError = e; }
+    }
+    throw lastError || new Error(t('Cópia de recuperação inválida.'));
+  }
+  async function ora(key) {
+    const r = await materialize(key), m = r.meta;
+    try {
+      const files = [{ name: 'mimetype', data: enc.encode('image/openraster') }];
+      r.images.forEach((x, digest) => files.push({ name: 'data/' + digest + '.png', data: x.bytes }));
+      const xml = xs => xs.slice().reverse().map(n => {
+        const attrs = ' name="' + escXml(n.name) + '" opacity="' + n.opacity + '" visibility="' + (n.visible ? 'visible' : 'hidden') + '"';
+        return n.type === 'group' ? '<stack' + attrs + '>' + xml(n.children) + '</stack>' :
+          '<layer' + attrs + ' src="data/' + n.blob + '.png" x="0" y="0" composite-op="svg:src-over" alpha-preserve="' + !!n.alphaLock + '" clip-to-below="' + !!n.clip + '"/>';
+      }).join('');
+      files.push({ name: 'stack.xml', data: enc.encode('<?xml version="1.0" encoding="UTF-8"?><image version="0.0.3" w="' + m.W + '" h="' + m.H + '"><stack>' + xml(m.tree) + '</stack></image>') });
+      const tree = xs => xs.map(n => n.type === 'group' ? { ...n, children: tree(n.children) } : { ...n, canvas: r.images.get(n.blob).bmp });
+      const composite = mkCanvas(m.W, m.H); drawItems(composite.getContext('2d'), flatten({ children: tree(m.tree) }), false, 0, m.W, m.H);
+      files.push({ name: 'mergedimage.png', data: await canvasToPng(composite) });
+      const scale = Math.min(1, 160 / m.W, 160 / m.H), th = mkCanvas(Math.round(m.W * scale), Math.round(m.H * scale));
+      th.getContext('2d').drawImage(composite, 0, 0, th.width, th.height);
+      files.push({ name: 'Thumbnails/thumbnail.png', data: await canvasToPng(th) });
+      return { bytes: zipStore(files), meta: m, requestedRevision: r.requestedRevision };
+    } finally { r.images.forEach(x => x.bmp.close()); }
+  }
+  async function restore(key) {
+    const result = await ora(key);
+    await loadOra(result.bytes);
+    const old = nodes(result.meta.tree), fresh = []; walk(doc.root, n => fresh.push(n));
+    const byId = new Map(); old.forEach((n, i) => { if (fresh[i]) { byId.set(n.id, fresh[i]); if (n.type === 'group') fresh[i].collapsed = !!n.collapsed; } });
+    doc.active = byId.get(result.meta.active) || doc.active;
+    doc.sel = new Set((result.meta.selected || []).map(id => byId.get(id)).filter(Boolean)); if (!doc.sel.size) selectOnly(doc.active);
+    S.fileName = stripExt(result.meta.name) + t(' (recuperado)') + '.ora'; S.filePath = null; S.fileHandle = null;
+    current.source = { session: result.meta.session, revision: result.requestedRevision };
+    afterDocChange(true); toast(t(result.requestedRevision !== result.meta.revision ? 'A cópia escolhida estava incompleta. Foi usada uma versão anterior.' : 'Recuperado — salve uma cópia .ora para continuar.'), 6000);
+    return result.meta;
+  }
+  async function discard(session) {
+    if (!/^[a-f0-9-]{36}$/.test(session) || session === current?.id) throw new Error(t('Cópia de recuperação inválida.'));
+    // Nenhuma outra sessão é removida automaticamente, inclusive outra janela aberta.
+    for (const f of await disk.list()) if (f.key.startsWith(session + '/')) await disk.del(f.key);
+  }
+  async function pending(all) {
+    for (const r of all) {
+      if (r.meta.session === current?.id) continue;
+      try { const ack = JSON.parse(dec.decode(await disk.get(r.meta.session + '/ack.json'))); if (ack.revision >= r.meta.revision) continue; } catch (e) { /* ainda não foi salvo/descartado */ }
+      return true;
+    }
+    return false;
+  }
+  let showSequence = 0;
+  async function show() {
+    if (saving || stroke || liquify || uiBusy) return;
+    if (tf) applyTransform();
+    const sequence = ++showSequence;
+    closeSettingsMenu(); showModal('#mRecovery');
+    $('#recoveryInterval').value = S.recoveryInterval; $('#recoveryLimit').value = S.recoveryLimit;
+    status(); const list = $('#recoveryList'); list.replaceChildren();
+    if (!ready) { await initPromise; status(); }
+    const all = await records(), sessions = new Map();
+    if (sequence !== showSequence || openModal?.id !== 'mRecovery') return;
+    for (const r of all) { if (!sessions.has(r.meta.session)) sessions.set(r.meta.session, []); sessions.get(r.meta.session).push(r); }
+    if (!sessions.size) { const p = document.createElement('p'); p.textContent = t('Nenhuma cópia de recuperação.'); list.append(p); }
+    for (const versions of sessions.values()) {
+      const item = document.createElement('div'); item.className = 'recovery-item';
+      const img = document.createElement('img'); img.alt = ''; const body = document.createElement('div'), name = document.createElement('strong'), select = document.createElement('select');
+      select.setAttribute('aria-label', t('Ver cópias'));
+      versions.slice(0, 3).forEach(r => { const option = document.createElement('option'); option.value = r.key; option.textContent = new Date(r.meta.time).toLocaleString(); select.append(option); });
+      const update = () => { const m = versions.find(r => r.key === select.value).meta; name.textContent = m.name; img.removeAttribute('src'); if (typeof m.preview === 'string' && m.preview.length < 200000 && /^data:image\/png;base64,/.test(m.preview)) img.src = m.preview; };
+      select.addEventListener('change', update); update(); body.append(name, select); item.append(img, body);
+      const actions = document.createElement('div'); actions.className = 'actions';
+      for (const [label, action] of [[t('Recuperar'), 'restore'], [t('Salvar cópia .ora'), 'export'], [t('Descartar cópias'), 'discard']]) {
+        const b = document.createElement('button'); b.className = 'pbtn' + (action === 'restore' ? ' primary' : ''); b.textContent = label;
+        if (action === 'discard' && versions[0].meta.session === current?.id) b.disabled = true;
+        b.addEventListener('click', async () => {
+          const key = select.value, session = versions[0].meta.session;
+          if (action === 'discard') {
+            closeModal(); if (!(await confirmBox(t('Descartar estas cópias?'), t('Todas as versões de recuperação deste desenho serão apagadas.'), t('Descartar cópias')))) { await show(); return; }
+          } else if (action === 'restore' && S.dirty) {
+            closeModal(); if (!(await confirmBox(t('Recuperar este desenho?'), t('As alterações atuais não salvas serão substituídas.'), t('Recuperar')))) { await show(); return; }
+          }
+          // Uma janela modal impede edição durante a leitura/exportação manual.
+          showModal('#mRecovery'); const app = $('#app'); app.inert = true; $('#mRecovery .modal').inert = true; uiBusy = true;
+          let recovered = false;
+          try {
+            if (action === 'restore') { await restore(key); recovered = true; $('#recoveryNotice').hidden = true; }
+            else if (action === 'export') {
+              const r = await ora(key), handle = S.fileHandle;
+              try {
+                await writeOut(r.bytes, stripExt(r.meta.name) + t(' (recuperado)') + '.ora', 'ora', null);
+                if (r.requestedRevision !== r.meta.revision) toast(t('A cópia escolhida estava incompleta. Foi usada uma versão anterior.'), 6000);
+              }
+              finally { S.fileHandle = handle; }
+            }
+            else await discard(session);
+          } catch (e) { toast(t('Não consegui recuperar: ') + (e.message || e), 6000); }
+          finally { app.inert = false; $('#mRecovery .modal').inert = false; uiBusy = false; }
+          if (recovered) closeModal();
+          if (action !== 'restore') await show();
+        });
+        actions.append(b);
+      }
+      item.append(actions); list.append(item);
+    }
+  }
+  async function init() {
+    try { disk = await storage(); status(); if (disk && await pending(await records())) $('#recoveryNotice').hidden = false; ready = true; }
+    catch (e) { ready = true; warn(e); }
+    timer = setInterval(() => {
+      if (current && S.recoveryInterval && Date.now() - current.last >= S.recoveryInterval * 1000 &&
+          (Date.now() - current.changed >= 750 || Date.now() - current.last >= S.recoveryInterval * 1000 + 10000)) void run();
+    }, 1000);
+  }
+  let initPromise;
+  return { newDocument, changed, run, acknowledge, records, ora, restore, discard, show, stats,
+    start() { return initPromise ||= init(); },
+    get state() { return current; }, get store() { return disk; }, get ready() { return ready; }, get working() { return working; }, get busyUI() { return uiBusy; } };
+})();
+
+/* =========================================================
    Exportação PSD: RGB 8-bit, camadas editáveis e composição de compatibilidade.
    Sem dependências em tempo de execução. Especificação: adobe.com/devnet-apps/photoshop/fileformatashtml/
    ========================================================= */
@@ -3080,17 +3481,25 @@ async function writeOut(bytes, suggested, kind, reusePath) {
   setTimeout(() => URL.revokeObjectURL(url), 4000);
   return { path: null, name: suggested };
 }
+let saving = false;
 async function save(asNew) {
-  if (stroke || liquify) return;
+  if (stroke || liquify || saving) return false;
   if (tf) applyTransform();
+  saving = true;
+  const generation = recovery.state, revision = generation.revision, originalName = S.fileName, originalPath = S.filePath;
   try {
     const bytes = await buildOra();
-    const suggested = stripExt(S.fileName === 'Sem título' ? t('desenho') : S.fileName) + '.ora';
-    const res = await writeOut(bytes, suggested, 'ora', asNew ? null : S.filePath);
-    if (!res) return;
+    if (recovery.state !== generation || generation.revision !== revision) throw new Error(t('O desenho mudou durante o salvamento. Salve novamente após terminar o traço.'));
+    const suggested = stripExt(originalName === 'Sem título' ? t('desenho') : originalName) + '.ora';
+    const res = await writeOut(bytes, suggested, 'ora', asNew ? null : originalPath);
+    if (!res) return false;
+    await recovery.acknowledge(generation, revision);
+    if (recovery.state !== generation) return true;
     S.filePath = res.path; S.fileName = res.name;
-    setDirty(false); toast('Salvo: ' + res.name);
-  } catch (e) { console.error(e); toast('Não consegui salvar: ' + (e.message || e), 4500); }
+    setDirty(generation.revision !== revision); toast('Salvo: ' + res.name);
+    return true;
+  } catch (e) { console.error(e); toast('Não consegui salvar: ' + (e.message || e), 4500); return false; }
+  finally { saving = false; }
 }
 async function exportPng() {
   if (tf) applyTransform();
@@ -3154,6 +3563,7 @@ window.addEventListener('dragover', (e) => { if (hasFiles(e)) e.preventDefault()
 window.addEventListener('drop', async (e) => {
   if (!hasFiles(e)) return;
   e.preventDefault(); dragDepth = 0; $('#dropHint').hidden = true;
+  if (openModal || saving) return;
   const files = [...e.dataTransfer.files]; if (!files.length) return;
   const first = new Uint8Array(await files[0].arrayBuffer());
   if (isZip(first) || /\.ora$/i.test(files[0].name)) {
@@ -3182,18 +3592,21 @@ window.addEventListener('paste', async (e) => {
    ========================================================= */
 let openModal = null;
 function showModal(id) { openModal = $(id); openModal.hidden = false; const f = openModal.querySelector('input,.primary'); if (f) f.focus(); }
-function closeModal() { if (openModal) { openModal.hidden = true; openModal = null; listening = null; } }
+function closeModal() { if (openModal?.id === 'mRecovery' && recovery.busyUI) return; if (openModal) { openModal.hidden = true; openModal = null; listening = null; } }
 document.querySelectorAll('[data-close]').forEach((b) => b.addEventListener('click', closeModal));
 document.querySelectorAll('.modal-back').forEach((m) => m.addEventListener('pointerdown', (e) => { if (e.target === m) { if (m.id === 'mConfirm') $('#confirmNo').click(); else closeModal(); } }));
 
 let confirmResolve = null;
-function confirmBox(title, text, yes) {
+function confirmBox(title, text, yes, allowSave = false) {
+  if (confirmResolve) { confirmResolve(false); confirmResolve = null; }
   $('#mConfirmTitle').textContent = title; $('#mConfirmText').textContent = text; $('#confirmYes').textContent = yes;
-  showModal('#mConfirm'); $('#confirmNo').focus();
+  $('#confirmSave').hidden = !allowSave;
+  showModal('#mConfirm'); $(allowSave ? '#confirmSave' : '#confirmNo').focus();
   return new Promise((res) => { confirmResolve = res; });
 }
 $('#confirmYes').addEventListener('click', () => { closeModal(); confirmResolve && confirmResolve(true); confirmResolve = null; });
 $('#confirmNo').addEventListener('click', () => { closeModal(); confirmResolve && confirmResolve(false); confirmResolve = null; });
+$('#confirmSave').addEventListener('click', () => { closeModal(); confirmResolve && confirmResolve('save'); confirmResolve = null; });
 
 function showNew() {
   if (tf) applyTransform();
@@ -3506,6 +3919,11 @@ $('#updNow').addEventListener('click', installUpdate);
 $('#updLater').addEventListener('click', () => { $('#updBanner').hidden = true; });
 $('#btnUpdates').addEventListener('click', () => { closeSettingsMenu(true); checkUpdates(true); });
 $('#btnUpdates').disabled = !(TAURI && TAURI.updater);
+$('#btnRecovery').addEventListener('click', () => { void recovery.show().catch(e => toast(t('Não consegui recuperar: ') + (e.message || e), 5000)); });
+$('#recoveryShow').addEventListener('click', () => $('#btnRecovery').click());
+$('#recoveryLater').addEventListener('click', () => { $('#recoveryNotice').hidden = true; });
+$('#recoveryInterval').addEventListener('change', e => { S.recoveryInterval = Number(e.target.value); saveSettingsSoon(); });
+$('#recoveryLimit').addEventListener('change', e => { S.recoveryLimit = Number(e.target.value); saveSettingsSoon(); });
 $('#updatesBrowserHint').hidden = !!(TAURI && TAURI.updater);
 if (TAURI) {
   if (TAURI.app) TAURI.app.getVersion().then((v) => { $('#appVersion').textContent = 'v' + v; }).catch(() => {});
@@ -3518,7 +3936,58 @@ function applyPin() {
   $('#btnPin').setAttribute('aria-pressed', String(S.layersPinned));
   $('#btnPin').title = S.layersPinned ? t('Gaveta presa (clique para soltar)') : t('Prender a gaveta aberta');
   $('#layers').classList.remove('open');
+  updateLayersWidth();
 }
+const layersResize = $('#layersResize');
+let layersDrag = null;
+function layersWidthLimits() {
+  const overlay = !S.layersPinned || matchMedia('(max-width: 760px)').matches;
+  const max = Math.max(1, Math.floor(Math.min(640, overlay ? innerWidth * 0.86 : innerWidth - 360)));
+  return { min: Math.min(240, max), max };
+}
+function updateLayersWidth() {
+  $('#app').style.setProperty('--layers-width', S.layersWidth + 'px');
+  const { min, max } = layersWidthLimits();
+  layersResize.setAttribute('aria-valuemin', min);
+  layersResize.setAttribute('aria-valuemax', max);
+  layersResize.setAttribute('aria-valuenow', Math.round(clamp(S.layersWidth, min, max)));
+}
+function setLayersWidth(width) {
+  const { min, max } = layersWidthLimits();
+  S.layersWidth = Math.round(clamp(width, min, max)); updateLayersWidth();
+}
+function endLayersResize(cancel = false) {
+  if (!layersDrag) return;
+  const drag = layersDrag; layersDrag = null;
+  if (cancel) { S.layersWidth = drag.saved; updateLayersWidth(); }
+  document.body.classList.remove('resizing-layers');
+  if (layersResize.hasPointerCapture(drag.id)) layersResize.releasePointerCapture(drag.id);
+  saveSettingsSoon();
+}
+layersResize.addEventListener('pointerdown', e => {
+  if (e.button !== 0 || layersDrag || stroke || liquify || lasso) return;
+  e.preventDefault();
+  layersDrag = { id: e.pointerId, x: e.clientX, width: $('#layers').getBoundingClientRect().width, saved: S.layersWidth };
+  layersResize.focus({ preventScroll: true }); layersResize.setPointerCapture(e.pointerId);
+  document.body.classList.add('resizing-layers');
+});
+layersResize.addEventListener('pointermove', e => {
+  if (layersDrag && e.pointerId === layersDrag.id) setLayersWidth(layersDrag.width + layersDrag.x - e.clientX);
+});
+layersResize.addEventListener('pointerup', e => { if (e.pointerId === layersDrag?.id) endLayersResize(); });
+layersResize.addEventListener('pointercancel', e => { if (e.pointerId === layersDrag?.id) endLayersResize(true); });
+layersResize.addEventListener('lostpointercapture', () => endLayersResize(true));
+window.addEventListener('blur', () => endLayersResize());
+window.addEventListener('resize', () => { endLayersResize(); updateLayersWidth(); });
+layersResize.addEventListener('dblclick', () => { S.layersWidth = 280; updateLayersWidth(); saveSettingsSoon(); });
+layersResize.addEventListener('keydown', e => {
+  if (layersDrag) { e.preventDefault(); e.stopPropagation(); if (e.key === 'Escape') endLayersResize(true); return; }
+  if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(e.key)) return;
+  e.preventDefault(); e.stopPropagation();
+  const { min, max } = layersWidthLimits(), width = $('#layers').getBoundingClientRect().width;
+  setLayersWidth(e.key === 'Home' ? min : e.key === 'End' ? max : width + (e.key === 'ArrowLeft' ? 1 : -1) * (e.shiftKey ? 40 : 10));
+  saveSettingsSoon();
+});
 $('#btnPin').addEventListener('click', () => { S.layersPinned = !S.layersPinned; applyPin(); saveSettingsSoon(); });
 $('#btnOpts').addEventListener('click', () => toggleOpts());
 /* menu do arquivo */
@@ -3591,12 +4060,38 @@ window.addEventListener('beforeunload', (e) => { if (S.dirty && !TAURI) { e.prev
 if (TAURI && TAURI.window) {
   try {
     const win = TAURI.window.getCurrentWindow();
+    let closing = false;
     win.onCloseRequested(async (ev) => {
+      if (closing || saving || recovery.busyUI) { ev.preventDefault(); return; }
+      if (stroke) endStroke();
+      if (liquify) endLiquify();
+      if (tf) applyTransform();
       if (!S.dirty) return;
       ev.preventDefault();
-      if (await confirmBox(t('Fechar sem salvar?'), t('As alterações deste desenho serão perdidas.'), t('Fechar sem salvar'))) {
-        S.dirty = false; await win.destroy();
-      }
+      closing = true;
+      try {
+        const choice = await confirmBox(t('Salvar antes de sair?'), t('Este desenho tem alterações não salvas. Deseja salvá-las antes de sair?'), t('Sair sem salvar'), true);
+        if (!choice) return;
+        if (choice === 'save') {
+          // Bloqueia a edição enquanto a cópia .ora é gerada e gravada.
+          const buttons = [$('#confirmNo'), $('#confirmYes'), $('#confirmSave')];
+          const app = $('#app'), wasInert = app.inert; app.inert = true;
+          buttons.forEach(b => { b.disabled = true; });
+          $('#mConfirmText').textContent = t('Salvando desenho…');
+          $('#mConfirm .modal').setAttribute('aria-busy', 'true'); showModal('#mConfirm');
+          let saved = false;
+          try { saved = await save(false); }
+          finally {
+            closeModal(); buttons.forEach(b => { b.disabled = false; });
+            app.inert = wasInert;
+            $('#mConfirm .modal').removeAttribute('aria-busy');
+          }
+          if (!saved || S.dirty) return;
+        }
+        await recovery.acknowledge();
+        await win.destroy();
+      } catch (e) { console.error(e); toast(t('Não consegui fechar: ') + (e.message || e), 4500); }
+      finally { closing = false; }
     });
   } catch (e) { console.warn(e); }
 }
@@ -3621,9 +4116,10 @@ if (TAURI && TAURI.core) {
   }).catch((e) => console.warn(e));
 }
 
-window.__doodle = { doc, S, buildOra, loadOra, buildPsd, compositeCanvas, afterDocChange, undo, redo, runAction, applyLasso, startTransform, applyTransform,
+window.__doodle = { doc, S, buildOra, loadOra, buildPsd, compositeCanvas, recovery, afterDocChange, undo, redo, runAction, applyLasso, startTransform, applyTransform,
   get tf() { return tf; }, get selection() { return selection; }, allLayers, flatten, targetLayers, selectOnly, renderLayers, clickRow, moveNodesTo, toDocXY, docToScreen,
   setTfMode, tfUndo, openTfMenu, toNewLayers, invertSelection, get rot() { return S.rot; } };
+void recovery.start();
 })();
 </script>
 </body>
