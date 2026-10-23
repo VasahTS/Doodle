@@ -4434,7 +4434,7 @@ const formatBytes = bytes => (bytes / 1048576).toFixed(1) + ' MB';
 function performanceSnapshot() {
   const sorted = perf.samples.slice().sort((a, b) => a - b);
   return {
-    schema: 1, app: 'Doodle', build: window.__DOODLE_BUILD__ || { channel: 'performance-preview' }, version: $('#appVersion').textContent || '0.3.0',
+    schema: 1, app: 'Doodle', build: window.__DOODLE_BUILD__ || { channel: 'performance-preview' }, version: $('#appVersion').textContent || '0.3.1',
     runtime: navigator.userAgent, platform: nativeGraphics?.platform || navigator.platform,
     display: { logical: [stage.clientWidth, stage.clientHeight], pixels: [view.width, view.height], systemDpr: DPR(), displayDpr: displayDpr(), quality: S.performanceMode },
     graphics: nativeGraphics, graphicsStatusUnavailable: graphicsError,

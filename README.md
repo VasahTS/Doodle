@@ -79,6 +79,6 @@ Instruções completas em português no [LEIA-ME.md](LEIA-ME.md).
 **[Baixar para Windows e Linux](../../releases/latest)**
 
 
-## Development performance changes
+## Performance in 0.3.1
 
-The main branch includes canvas overlays, bounded history/recovery settings and sparse GPU/worker Liquify with CPU fallbacks. It also fixes selection-toolbar updates and copying between documents. These changes are not included in the published stable 0.3.0 installer. See [Liquify measurements and limits](docs/performance-liquify.md) and the [separate test installer](PERFORMANCE-TESTING.md).
+The main branch includes canvas overlays, bounded history/recovery settings and sparse GPU/worker Liquify with CPU fallbacks. It also fixes selection-toolbar updates and copying between documents. These improvements are included in version 0.3.1. See [Liquify measurements and limits](docs/performance-liquify.md) and the [separate test installer](PERFORMANCE-TESTING.md).

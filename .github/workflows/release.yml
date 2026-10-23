@@ -87,6 +87,10 @@ jobs:
       - name: Install Tauri CLI
         run: npm install -g @tauri-apps/cli@^2
 
+      - name: Stamp stable build identity
+        run: |
+          node -e "const fs=require('fs'); fs.writeFileSync('src/build-info.js', 'window.__DOODLE_BUILD__ = '+JSON.stringify({channel:'stable',revision:process.env.GITHUB_SHA})+';');"
+
       - name: Build and upload to the release
         uses: tauri-apps/tauri-action@v0
         env:

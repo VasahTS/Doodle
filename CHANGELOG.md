@@ -1,6 +1,8 @@
 # Changelog
 
-## [Unreleased]
+## [0.3.1] - 2026-10-23
+
+Implemented and documented by **Codex (OpenAI)** at Daniel's request.
 
 ### Performance
 
@@ -17,7 +19,11 @@
 - Add automatic and compatibility graphics preferences applied before native WebView startup, with a restart notice and a one-launch `--safe-gpu` option. Browser acceleration remains managed by the browser.
 - Make recovery version retention configurable, add storage tiers and usage, preserve older versions until a successful replacement commits, and back off progressively after failures.
 - Avoid PNG compression when recovery storage is already full, scope native pruning to the current session and index browser recovery sizes without scanning PNG values.
-- Add regression coverage for settings, scene reuse, sparse history, recovery migration and retries. The separate Windows test build passed native 4K/8000px Liquify, ORA and compatibility checks; physical tablet feel and affected hardware still require validation. These changes have not been published as a stable release.
+- Add regression coverage for settings, scene reuse, sparse history, recovery migration and retries. The separate Windows test build passed native 4K/8000px Liquify, ORA and compatibility checks; physical tablet feel and affected hardware still require validation. All 14 regression suites and the 8000 x 8000 maximum-brush stress case passed before release.
+
+### Known limits
+
+- Extreme Liquify strokes can still finish with a delay on slower machines or without graphics acceleration. The diagnostic report records the backend, queue and completion times for the last stroke.
 
 ## [0.3.0] - 2026-10-22
 
