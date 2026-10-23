@@ -23,7 +23,15 @@ Built with [Tauri](https://tauri.app) (Rust underneath, HTML interface). Availab
 - **Every shortcut can be changed** (Settings → Shortcuts or `Ctrl+K`)
 - **Settings menu** in the top-right gear: keyboard shortcuts, language and update checks
 - **Updates itself** from GitHub releases, no need to visit the repository
-- Saves **OpenRaster (.ora)**, which Krita, GIMP and MyPaint also open; exports PNG
+- Saves **OpenRaster (.ora)**, which Krita, GIMP and MyPaint also open; exports PNG and layered **Photoshop (.psd)** files
+
+## Export to Photoshop
+
+Choose **File → Export PSD**. The file keeps editable raster layers, nested folders, Unicode names, transparency, visibility, clipping and transparent-pixel locks. PSD export does not change the drawing's `.ora` save destination.
+
+Doodle applies folder opacity to each layer separately. To preserve overlapping colors in PSD, folder opacity is distributed into the base layers' opacity; exported folders start at 100%. Layer pixels remain unchanged. PSD uses 8-bit opacity values, so slight rounding differences are possible.
+
+Keep saving an `.ora` copy to continue working in Doodle. PSD import is not included.
 
 ## Build from source
 

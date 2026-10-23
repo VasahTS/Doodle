@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.2.1] - 2026-10-22
+
+Implemented and documented by **Codex (OpenAI)** at Daniel's request.
+
+### Added
+
+- File → Export PSD, with editable raster layers, nested folders, Unicode names, visibility, transparency, clipping and transparent-pixel locks.
+- A built-in PSD writer with lossless PackBits compression, an sRGB profile and a composite preview, without adding runtime dependencies or a build step.
+- Browser and native-dialog regression checks, plus independent PSD parsing and layer-compositing validation.
+
+### Compatibility
+
+- OpenRaster remains the native save format; PSD export preserves the current ORA save destination and unsaved state. PSD import is not included.
+- Folder opacity is distributed to base layers to preserve Doodle's appearance across overlapping layers. Exported folders start at 100%; raster pixels remain unchanged.
+- PSD opacity uses 8-bit values, with possible minor rounding differences. Validation used ag-psd and psd-tools; opening in Photoshop and Clip Studio Paint still needs manual verification.
+
 ## [0.2.0] - 2026-10-22
 
 Implemented and documented by **Codex (OpenAI)** at Daniel's request.

@@ -2,7 +2,7 @@
 
 Install Playwright in a separate tools folder or expose an existing installation through `NODE_PATH`. No build dependencies are added to Doodle.
 
-Run all seven suites with `node tests/run.cjs`. Set `DOODLE_BROWSER=msedge` to run the browser checks in Edge. The release metadata suite only needs Node.js.
+Run all eight suites with `node tests/run.cjs`. Set `DOODLE_BROWSER=msedge` to run the browser checks in Edge. The release metadata suite only needs Node.js. The PSD suite also needs the external test dependency described below.
 
 Run `node tests/liquify.cjs` with Chrome installed. Set `DOODLE_BROWSER=msedge` to check Edge instead. Set `DOODLE_SCREENSHOT` to an absolute PNG path to save a preview.
 
@@ -31,3 +31,11 @@ Run `node tests/clear-contents.cjs`. It checks Backspace with and without a pixe
 # Release metadata checks
 
 Run `node tests/release-metadata.cjs` to check matching Tauri/Cargo versions and execute the workflow's release-note script against a local GitHub API stub. It verifies the English changelog entry, release creation/update and error handling without contacting GitHub.
+
+# PSD export checks
+
+Install `ag-psd` in a separate tools folder using `npm install --ignore-scripts ag-psd`, then set `PSD_READER_PATH` to that installation's absolute `node_modules/ag-psd` directory. This is a test dependency; the app has no new dependencies. Validation used ag-psd 31.0.3.
+
+Run `node tests/psd-export.cjs`. It verifies lossless pixel channels, empty layers, nested/open/closed/hidden folders, Unicode names, transparent pixels, clipping, locks, effective opacity, the composite preview, the File menu, English text, cancellation, fallback download Blob and native Tauri dialog/filesystem calls using a stub. It also verifies that PSD export leaves the ORA filename, save destination and unsaved state intact.
+
+Set `DOODLE_PSD_OUTPUT` to a fixture directory to save `layers.psd` and `expected.png`. With `psd-tools`, Pillow and numpy available, run `python tests/psd-composite.py FIXTURE_DIRECTORY`. It recomposes the editable layers with `ignore_preview=True` and compares premultiplied colors and alpha against the Doodle image, allowing at most 3/255 and 2/255 respectively. Validation used psd-tools 1.26.0. Native Photoshop/Clip Studio Paint opening still needs manual verification.

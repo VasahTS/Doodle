@@ -35,7 +35,7 @@ Doodle é um app de desenho leve para rabiscar. Desktop, open source (licença M
 - **Ctrl+T** (transformar): mover, escalar, girar, inclinar, distorcer (cantos livres, com perspectiva), espelhar, girar 90°. O botão direito abre um menu com esses modos. Ctrl+Z desfaz o último ajuste dentro da transformação.
 - **Vista**: R segurado gira a tela, `'` volta a 0°, Z segurado e arrastando dá zoom, F1 espelha a vista, Espaço segurado move a tela.
 - **Configurações** na engrenagem do canto superior direito: idioma, atalhos e procura de atualizações. **Todos os atalhos podem ser trocados** (Configurações → Atalhos ou Ctrl+K). Ficam salvos.
-- Arquivos **.ora** (OpenRaster, abrem no Krita e no GIMP), com pastas, trava e recorte. Exporta PNG. Abre PNG/JPG e cola imagens da área de transferência.
+- Arquivos **.ora** (OpenRaster, abrem no Krita e no GIMP), com pastas, trava e recorte. Exporta PNG e **PSD com camadas** pelo menu Arquivo. Abre PNG/JPG e cola imagens da área de transferência; ainda não importa PSD.
 - **Atualização automática** pelas releases do GitHub (veja "Publicar uma versão").
 
 ## Arquitetura
@@ -82,7 +82,8 @@ O script é um IIFE só, dividido em seções com comentários `/* ===== Nome ==
 | Ponteiro | eventos `pointerdown/move/up` com `getCoalescedEvents`, ponta borracha da caneta, mão, zoom com Z, girar com R |
 | Ferramentas e opções | `setTool`, `setOptsMode`, ajustes por ferramenta, dock, balão de ajustes, paleta |
 | Arquivo .ora | zip feito à mão (`zipStore`, `unzip`, `crc32`, inflate via `DecompressionStream`), `buildOra`, `loadOra` |
-| Abrir e salvar | `writeOut`, `save`, `exportPng`, `openFile`, arrastar e soltar, colar imagem |
+| Exportação PSD | `PsdBytes`, `psdChannel` (PackBits por linha), `buildPsd`: camadas/pastas, tags de nomes/recorte/trava, perfil sRGB e composição RGBA |
+| Abrir e salvar | `writeOut`, `save`, `exportPng`, `exportPsd`, `openFile`, arrastar e soltar, colar imagem |
 | Janelas | novo desenho, confirmação (`confirmBox`; `alert` e `confirm` não são usados) |
 | Atalhos | `ACTIONS` (id, grupo, rótulo pt, tecla padrão), `RUN`, `KEYS`, teclas de segurar (`hold.*`), editor de atalhos |
 | Fim | idioma, gaveta de camadas (`applyPin`), menus do arquivo e configurações (`openSettingsMenu`, `closeSettingsMenu`), atualizações (`checkUpdates`, `installUpdate`), início |
@@ -104,6 +105,9 @@ O script é um IIFE só, dividido em seções com comentários `/* ===== Nome ==
 O arquivo é um zip com `mimetype` (primeiro, sem compressão), `stack.xml`, `data/layerN.png`, `mergedimage.png` e `Thumbnails/thumbnail.png`. Pastas viram `<stack>`. Atributos extras que só o Doodle lê: `alpha-preserve="true"` (trava) e `clip-to-below="true"` (recorte). Outros programas ignoram esses atributos.
 
 ## Como testar
+
+- **PSD:** exportação somente, RGB de 8 bits. O `.ora` continua sendo o formato nativo. A opacidade das pastas é distribuída nas camadas de base (não nas camadas presas), e as pastas do PSD ficam em 100%, pois a composição por pasta do Photoshop difere do `flatten()` do Doodle. Não aplique o fator duas vezes. Pixels de cada camada continuam intactos; a prévia usa o branco sob o alfa exigido pelo PSD.
+- `tests/psd-export.cjs` usa Playwright e `ag-psd` externos ao app. `tests/psd-composite.py` usa `psd-tools` para reconstruir a composição sem aproveitar a prévia do PSD. Veja `tests/README.md`.
 
 - **Rápido:** abra `src/index.html` no Chrome ou no Edge. Quase tudo funciona, menos o atualizador e os diálogos nativos.
 - **App de verdade:** `cargo tauri dev` na raiz do projeto. Precisa do Rust e, no Windows, das Microsoft C++ Build Tools. O CLI se instala com `cargo install tauri-cli --version "^2" --locked`.
@@ -135,5 +139,6 @@ Também funciona enviando uma tag `vX.Y.Z` ou rodando o workflow pela aba Action
 
 - **Codex (OpenAI)** implementou e documentou a sessão de **22/10/2026**, preparada para a versão **0.2.0**: Liquify, tamanhos fracionários, melhorias no laço/contorno, atalhos F e Backspace, configurações, testes e publicação.
 - Registro completo: [docs/sessions/2026-10-22-codex.md](docs/sessions/2026-10-22-codex.md).
+- **Codex (OpenAI)** adicionou a exportação PSD na versão **0.2.1**, com escritor integrado, pastas/camadas editáveis e verificação por dois leitores independentes. Importação PSD continua pendente.
 - Changelog em inglês: [CHANGELOG.md](CHANGELOG.md).
 - Ideias futuras solicitadas pelo Daniel, ainda pendentes: [future-additions/README.md](future-additions/README.md).

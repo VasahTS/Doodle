@@ -23,6 +23,19 @@ engrenagem **Configurações**, no canto superior direito, e escolha em **Idioma
 O mesmo menu reúne **Atalhos** e **Procurar atualizações**. No navegador, a procura
 de atualizações fica desativada; ela funciona no aplicativo instalado.
 
+## Exportar para Photoshop
+
+Abra **Arquivo → Exportar PSD** e escolha onde salvar. O arquivo mantém camadas
+editáveis, pastas, nomes, transparência, visibilidade, recorte na camada de baixo
+e trava de pixels transparentes.
+
+Continue salvando uma cópia **.ora** para trabalhar no Doodle. Exportar PSD não
+muda o destino do seu arquivo .ora. Abrir arquivos PSD ainda não está incluído.
+
+Para manter as cores nas sobreposições, a opacidade das pastas é aplicada às
+camadas de base na exportação; as pastas no PSD ficam em 100%. Os pixels das
+camadas são preservados. Pode haver pequenas diferenças de arredondamento.
+
 ## Já tem o Rust e o Tauri instalados?
 
 Abra a pasta `doodle` no Explorador, clique com o botão direito num espaço vazio,

@@ -369,6 +369,7 @@ input[type=color].hidden-color { position: absolute; width: 0; height: 0; opacit
     <button class="ctx-item" role="menuitem" data-act="file.save"><span class="ic"><svg class="i s"><use href="#i-save"/></svg></span>Salvar<span class="kb"></span></button>
     <button class="ctx-item" role="menuitem" data-act="file.saveAs"><span class="ic"></span>Salvar como<span class="kb"></span></button>
     <button class="ctx-item" role="menuitem" data-act="file.export"><span class="ic"><svg class="i s"><use href="#i-export"/></svg></span>Exportar PNG<span class="kb"></span></button>
+    <button class="ctx-item" id="btnExportPsd" role="menuitem" data-act="file.exportPsd"><span class="ic"><svg class="i s"><use href="#i-export"/></svg></span>Exportar PSD<span class="kb"></span></button>
     <div class="ctx-sep"></div>
     <div class="info" id="stSize"></div>
   </div>
@@ -639,6 +640,8 @@ input[type=color].hidden-color { position: absolute; width: 0; height: 0; opacit
    Idiomas: pt-BR (o texto original) e en-US
    ========================================================= */
 const EN = {
+  'Exportar PSD': 'Export PSD', 'Documento Photoshop (.psd)': 'Photoshop document (.psd)', 'PSD exportado: ': 'PSD exported: ',
+  'Este desenho excede os limites do formato PSD.': 'This drawing exceeds the PSD format limits.',
   'Configurações': 'Settings',
   'Atualizações disponíveis no aplicativo instalado.': 'Updates are available in the installed app.',
   'Modo da seleção': 'Selection mode', 'Nova seleção': 'New selection', 'Nova': 'New',
@@ -2912,6 +2915,134 @@ async function importImagesAsLayers(items) {
 const isZip = (b) => b.length > 4 && b[0] === 0x50 && b[1] === 0x4b && b[2] === 3 && b[3] === 4;
 
 /* =========================================================
+   Exportação PSD: RGB 8-bit, camadas editáveis e composição de compatibilidade.
+   Sem dependências em tempo de execução. Especificação: adobe.com/devnet-apps/photoshop/fileformatashtml/
+   ========================================================= */
+class PsdBytes {
+  constructor() { this.parts = []; this.length = 0; }
+  raw(bytes) {
+    if (this.length + bytes.length > 0x7fffffff) throw new Error(t('Este desenho excede os limites do formato PSD.'));
+    this.parts.push(bytes); this.length += bytes.length;
+  }
+  u8(n) { this.raw(Uint8Array.of(n)); }
+  u16(n) { const a = new Uint8Array(2); new DataView(a.buffer).setUint16(0, n); this.raw(a); }
+  u32(n) { const a = new Uint8Array(4); new DataView(a.buffer).setUint32(0, n); this.raw(a); }
+  str(s) { this.raw(Uint8Array.from(s, (c) => c.charCodeAt(0))); }
+  unicode(s) { this.u32(s.length); for (let i = 0; i < s.length; i++) this.u16(s.charCodeAt(i)); }
+  section(fn, alignment = 1) {
+    const size = new Uint8Array(4); this.raw(size); const start = this.length;
+    fn(); while ((this.length - start) % alignment) this.u8(0);
+    new DataView(size.buffer).setUint32(0, this.length - start);
+  }
+  tag(key, fn) { this.str('8BIM'); this.str(key); this.section(fn, 2); }
+  finish() {
+    const bytes = new Uint8Array(this.length); let offset = 0;
+    for (const part of this.parts) { bytes.set(part, offset); offset += part.length; }
+    return bytes;
+  }
+}
+// PackBits por linha. O mesmo codificador atende os canais das camadas e a prévia.
+function psdChannel(data, width, height, channel) {
+  if (!width || !height) return { length: 2, lengths: new Uint8Array(0), rows: [], empty: true };
+  const lengths = new Uint8Array(height * 2), view = new DataView(lengths.buffer), rows = [];
+  let total = 2 + lengths.length;
+  for (let y = 0; y < height; y++) {
+    const row = new Uint8Array(width + Math.ceil(width / 128) + 2), base = y * width * 4 + channel;
+    const value = (x) => data[base + x * 4];
+    let x = 0, n = 0;
+    while (x < width) {
+      let run = 1;
+      while (run < 128 && x + run < width && value(x + run) === value(x)) run++;
+      if (run >= 3) { row[n++] = 257 - run; row[n++] = value(x); x += run; }
+      else {
+        const start = x; x += run;
+        while (x < width && x - start < 128) {
+          if (x + 2 < width && value(x) === value(x + 1) && value(x) === value(x + 2)) break;
+          x++;
+        }
+        // Um par iniciado perto do limite pode passar de 128; deixa o resto para a próxima rodada.
+        if (x - start > 128) x = start + 128;
+        row[n++] = x - start - 1;
+        for (let i = start; i < x; i++) row[n++] = value(i);
+      }
+    }
+    const packed = row.slice(0, n); rows.push(packed); view.setUint16(y * 2, n); total += n;
+  }
+  return { length: total, lengths, rows, empty: false };
+}
+function buildPsd() {
+  if (doc.W > 30000 || doc.H > 30000) throw new Error(t('Este desenho excede os limites do formato PSD.'));
+  const records = [];
+  const collect = (group, alpha = 1) => {
+    for (const node of group.children) {
+      if (node.type === 'group') {
+        records.push({ node: { name: '</Layer group>', visible: true }, opacity: 1, divider: 3 });
+        collect(node, alpha * node.opacity); records.push({ node, opacity: 1, divider: node.collapsed ? 2 : 1 });
+      } else records.push({ node, opacity: node.opacity * (node.clip && clipBaseOf(node) ? 1 : alpha), divider: 0 });
+    }
+  };
+  collect(doc.root);
+  if (!records.length || records.length > 32767) throw new Error(t('Este desenho excede os limites do formato PSD.'));
+  for (const record of records) {
+    const n = record.node, rect = record.divider ? null : alphaBounds(n.ctx, 0, 0, doc.W, doc.H);
+    record.rect = rect || { x: 0, y: 0, w: 0, h: 0 };
+    const pixels = rect ? n.ctx.getImageData(rect.x, rect.y, rect.w, rect.h).data : null;
+    record.channels = [0, 1, 2, 3].map((i) => psdChannel(pixels, record.rect.w, record.rect.h, i));
+  }
+  const w = new PsdBytes();
+  w.str('8BPS'); w.u16(1); w.raw(new Uint8Array(6)); w.u16(4);
+  w.u32(doc.H); w.u32(doc.W); w.u16(8); w.u16(3); w.u32(0);
+  w.section(() => {
+    // Perfil sRGB gerado pelo LittleCMS: mantém a interpretação das cores do canvas.
+    const profile = Uint8Array.from(atob('AAACTGxjbXMEQAAAbW50clJHQiBYWVogB+oACgAXAAAAEAAeYWNzcE1TRlQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAPbWAAEAAAAA0y1sY21zAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAALZGVzYwAAAQgAAAA2Y3BydAAAAUAAAABMd3RwdAAAAYwAAAAUY2hhZAAAAaAAAAAsclhZWgAAAcwAAAAUYlhZWgAAAeAAAAAUZ1hZWgAAAfQAAAAUclRSQwAAAggAAAAgZ1RSQwAAAggAAAAgYlRSQwAAAggAAAAgY2hybQAAAigAAAAkbWx1YwAAAAAAAAABAAAADGVuVVMAAAAaAAAAHABzAFIARwBCACAAYgB1AGkAbAB0AC0AaQBuAABtbHVjAAAAAAAAAAEAAAAMZW5VUwAAADAAAAAcAE4AbwAgAGMAbwBwAHkAcgBpAGcAaAB0ACwAIAB1AHMAZQAgAGYAcgBlAGUAbAB5WFlaIAAAAAAAAPbWAAEAAAAA0y1zZjMyAAAAAAABDEIAAAXe///zJQAAB5MAAP2Q///7of///aIAAAPcAADAblhZWiAAAAAAAABvoAAAOPUAAAOQWFlaIAAAAAAAACSfAAAPhAAAtsNYWVogAAAAAAAAYpcAALeHAAAY2XBhcmEAAAAAAAMAAAACZmYAAPKnAAANWQAAE9AAAApbY2hybQAAAAAAAwAAAACj1wAAVHsAAEzNAACZmgAAJmYAAA9c'), (c) => c.charCodeAt(0));
+    w.str('8BIM'); w.u16(1039); w.u16(0); w.section(() => w.raw(profile), 2);
+    w.str('8BIM'); w.u16(1005); w.u16(0); w.section(() => {
+      for (let i = 0; i < 2; i++) { w.u32(72 * 65536); w.u16(1); w.u16(1); }
+    });
+  });
+  w.section(() => {
+    w.section(() => {
+      // Negativo informa que o quarto canal da composição é transparência.
+      w.u16((-records.length) & 0xffff);
+      records.forEach((record, index) => {
+        const n = record.node, r = record.rect;
+        w.u32(r.y); w.u32(r.x); w.u32(r.y + r.h); w.u32(r.x + r.w); w.u16(4);
+        record.channels.forEach((c, i) => { w.u16(i === 3 ? 0xffff : i); w.u32(c.length); });
+        // Doodle aplica a opacidade da pasta em cada base, antes das sobreposições.
+        // No PSD, distribuir esse fator preserva a aparência e mantém as pastas editáveis.
+        w.str('8BIM'); w.str('norm'); w.u8(Math.round(clamp(record.opacity, 0, 1) * 255));
+        w.u8(!record.divider && n.clip && clipBaseOf(n) ? 1 : 0);
+        w.u8(8 | (n.alphaLock ? 1 : 0) | (!n.visible ? 2 : 0) | (record.divider ? 16 : 0)); w.u8(0);
+        w.section(() => {
+          w.u32(0); w.u32(0); // Sem máscara adicional nem faixas de mesclagem.
+          const name = n.name || '', fallback = name.slice(0, 255);
+          w.u8(fallback.length);
+          for (let i = 0; i < fallback.length; i++) w.u8(fallback.charCodeAt(i) < 128 ? fallback.charCodeAt(i) : 63);
+          for (let i = fallback.length + 1; i % 4; i++) w.u8(0);
+          w.tag('luni', () => w.unicode(name)); w.tag('lyid', () => w.u32(index + 1));
+          if (record.divider) w.tag('lsct', () => { w.u32(record.divider); if (record.divider !== 3) { w.str('8BIM'); w.str('pass'); } });
+          else { w.tag('lspf', () => w.u32(n.alphaLock ? 1 : 0)); w.tag('clbl', () => { w.u8(1); w.raw(new Uint8Array(3)); }); }
+        });
+      });
+      for (const record of records) for (const c of record.channels) {
+        w.u16(c.empty ? 0 : 1); w.raw(c.lengths); c.rows.forEach((row) => w.raw(row));
+      }
+    }, 2);
+    w.u32(0); // Sem máscara global.
+  }, 2);
+  const composite = compositeCanvas().getContext('2d').getImageData(0, 0, doc.W, doc.H).data;
+  // A composição RGB do PSD usa branco sob o alfa; os pixels das camadas continuam intactos.
+  for (let i = 0; i < composite.length; i += 4) if (composite[i + 3] > 0 && composite[i + 3] < 255) {
+    const a = composite[i + 3] / 255;
+    for (let c = 0; c < 3; c++) composite[i + c] = Math.round(composite[i + c] * a + 255 * (1 - a));
+  }
+  const channels = [0, 1, 2, 3].map((i) => psdChannel(composite, doc.W, doc.H, i));
+  w.u16(1); channels.forEach((c) => w.raw(c.lengths));
+  channels.forEach((c) => c.rows.forEach((row) => w.raw(row)));
+  return w.finish();
+}
+
+/* =========================================================
    Abrir e salvar (app Tauri ou navegador)
    ========================================================= */
 const ORA_FILTER = { name: 'OpenRaster (.ora)', extensions: ['ora'] };
@@ -2919,7 +3050,8 @@ const PNG_FILTER = { name: t('Imagem PNG'), extensions: ['png'] };
 const OPEN_FILTER = { name: t('Desenhos e imagens'), extensions: ['ora', 'png', 'jpg', 'jpeg', 'webp', 'bmp'] };
 
 async function writeOut(bytes, suggested, kind, reusePath) {
-  const filter = kind === 'ora' ? ORA_FILTER : PNG_FILTER, ext = '.' + filter.extensions[0];
+  const filter = kind === 'ora' ? ORA_FILTER : kind === 'psd' ? { name: t('Documento Photoshop (.psd)'), extensions: ['psd'] } : PNG_FILTER;
+  const ext = '.' + filter.extensions[0], mime = kind === 'ora' ? 'image/openraster' : kind === 'psd' ? 'image/vnd.adobe.photoshop' : 'image/png';
   if (TAURI) {
     let path = reusePath;
     if (!path) {
@@ -2937,13 +3069,13 @@ async function writeOut(bytes, suggested, kind, reusePath) {
   if (window.showSaveFilePicker) {
     try {
       let handle = kind === 'ora' && reusePath === 'handle' ? S.fileHandle : null;
-      if (!handle) handle = await window.showSaveFilePicker({ suggestedName: suggested, types: [{ description: filter.name, accept: { [kind === 'ora' ? 'image/openraster' : 'image/png']: [ext] } }] });
+      if (!handle) handle = await window.showSaveFilePicker({ suggestedName: suggested, types: [{ description: filter.name, accept: { [mime]: [ext] } }] });
       const w = await handle.createWritable(); await w.write(bytes); await w.close();
       if (kind === 'ora') S.fileHandle = handle;
       return { path: 'handle', name: handle.name };
     } catch (e) { if (e && e.name === 'AbortError') return null; }
   }
-  const url = URL.createObjectURL(new Blob([bytes], { type: kind === 'ora' ? 'image/openraster' : 'image/png' }));
+  const url = URL.createObjectURL(new Blob([bytes], { type: mime }));
   const a = document.createElement('a'); a.href = url; a.download = suggested; document.body.appendChild(a); a.click(); a.remove();
   setTimeout(() => URL.revokeObjectURL(url), 4000);
   return { path: null, name: suggested };
@@ -2967,6 +3099,18 @@ async function exportPng() {
     const res = await writeOut(bytes, stripExt(S.fileName === 'Sem título' ? t('desenho') : S.fileName) + '.png', 'png', null);
     if (res) toast('PNG exportado: ' + res.name);
   } catch (e) { console.error(e); toast('Não consegui exportar: ' + (e.message || e), 4500); }
+}
+let psdExporting = false;
+async function exportPsd() {
+  if (stroke || liquify || lasso || psdExporting) return;
+  if (tf) applyTransform();
+  psdExporting = true;
+  try {
+    const bytes = buildPsd();
+    const res = await writeOut(bytes, stripExt(S.fileName === 'Sem título' ? t('desenho') : S.fileName) + '.psd', 'psd', null);
+    if (res) toast(t('PSD exportado: ') + res.name);
+  } catch (e) { console.error(e); toast(t('Não consegui exportar: ') + (e.message || e), 4500); }
+  finally { psdExporting = false; }
 }
 async function openBytes(bytes, name, path) {
   try {
@@ -3122,6 +3266,7 @@ const ACTIONS = [
   ['file.save', 'Arquivo', 'Salvar', 'Ctrl+S'],
   ['file.saveAs', 'Arquivo', 'Salvar como', 'Ctrl+Shift+S'],
   ['file.export', 'Arquivo', 'Exportar PNG', 'Ctrl+Shift+E'],
+  ['file.exportPsd', 'Arquivo', 'Exportar PSD', ''],
   ['app.keys', 'Arquivo', 'Ver e trocar atalhos', 'Ctrl+K'],
 ];
 const ACTION = Object.fromEntries(ACTIONS.map(([id, group, label, def, kind]) => [id, { id, group, label, def, kind }]));
@@ -3147,7 +3292,7 @@ const RUN = {
   'layer.up': () => moveActiveStep(1), 'layer.down': () => moveActiveStep(-1),
   'layer.selUp': () => selectStep(1), 'layer.selDown': () => selectStep(-1),
   'file.new': showNew, 'file.open': openFile, 'file.save': () => save(false), 'file.saveAs': () => save(true),
-  'file.export': exportPng, 'app.keys': showKeys,
+  'file.export': exportPng, 'file.exportPsd': exportPsd, 'app.keys': showKeys,
 };
 // Durante o Ctrl+T só valem estas (o resto aplica a transformação antes)
 const TF_SAFE = new Set(['view.mirror', 'view.resetRot', 'view.fit', 'view.actual', 'view.zoomIn', 'view.zoomOut', 'edit.undo', 'edit.transform', 'app.keys']);
@@ -3476,7 +3621,7 @@ if (TAURI && TAURI.core) {
   }).catch((e) => console.warn(e));
 }
 
-window.__doodle = { doc, S, buildOra, loadOra, afterDocChange, undo, redo, runAction, applyLasso, startTransform, applyTransform,
+window.__doodle = { doc, S, buildOra, loadOra, buildPsd, compositeCanvas, afterDocChange, undo, redo, runAction, applyLasso, startTransform, applyTransform,
   get tf() { return tf; }, get selection() { return selection; }, allLayers, flatten, targetLayers, selectOnly, renderLayers, clickRow, moveNodesTo, toDocXY, docToScreen,
   setTfMode, tfUndo, openTfMenu, toNewLayers, invertSelection, get rot() { return S.rot; } };
 })();

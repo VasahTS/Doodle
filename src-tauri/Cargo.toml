@@ -1,6 +1,6 @@
 [package]
 name = "doodle"
-version = "0.2.0"
+version = "0.2.1"
 description = "Doodle - app para rabiscar, com camadas"
 edition = "2021"
 
