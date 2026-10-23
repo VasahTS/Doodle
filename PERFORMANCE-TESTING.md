@@ -4,11 +4,15 @@ Esta branch contém o código de `Doodle-Performance-Source.zip`, baseado no Doo
 
 Esta atualização modifica o Liquify: cálculo em Worker com aceleração WebGL2 quando disponível, cache de blocos e prévia regional. O instalador Windows é gerado pelo workflow Canvas performance test installer e publicado em uma pré-release de testes após a compilação e as verificações nativas passarem. Os downloads da release estável 0.3.0 continuam sendo da versão anterior às otimizações.
 
+## Novo instalador de Liquify
+
+[Baixar o instalador Windows x64](https://github.com/VasahTS/Doodle/releases/download/performance-canvas-39987901213-1/Doodle-Performance-Test-Windows-x64-setup.exe). Esta build é da revisão 7c74aab8a097488a79bd76baff918f2e13668116.
+
 ## Liquify: teste prioritário
 
 Use Empurrar, tamanho padrão e depois 500 px, força máxima, em 4K e 8000 × 8000. Faça passadas rápidas de ponta a ponta e passadas consecutivas. Confira a ponta final, seleção, transparência, Ctrl+Z/Ctrl+Y e salvar/reabrir. Acompanhe tanto a resposta do cursor quanto o atraso até a deformação terminar. Depois da passada lenta, salve o diagnóstico: agora ele identifica a build e inclui o tempo e a fila do Liquify.
 
-Na máquina medida, a diagonal extrema de 8000 × 8000 caiu de cerca de 5 s para 1 s; ainda há cerca de 0,9 s de espera após soltar nesse caso. Sem aceleração e sem Worker, o extremo é mais lento. Isso precisa ser comparado nas máquinas afetadas. Metodologia e resultados: [performance-liquify.md](docs/performance-liquify.md).
+Na máquina medida, a diagonal extrema de 8000 × 8000 caiu de cerca de 5 s para 1 s; ainda há cerca de 0,9 s de espera após soltar nesse caso. Com a GPU desativada, esse extremo levou cerca de 4,8 s no Worker/CPU, mantendo a interface respondendo. Sem Worker, o fallback cooperativo também é mais lento. Isso precisa ser comparado nas máquinas afetadas. Metodologia e resultados: [performance-liquify.md](docs/performance-liquify.md).
 
 ## Como testar
 
@@ -28,6 +32,7 @@ O botão Medir fluidez amostra intervalos entre callbacks de animação. Não me
 
 - Em 60 movimentos de cursor sem contato, a base 0.3.0 executou 120 chamadas `drawImage` na superfície do documento; este pacote executou zero. A medição foi feita no Chrome headless, com GPU desativada e DPR 2.
 - As 12 suítes fornecidas passaram na revisão após ajustes do ambiente de teste. Isso não substitui um teste nativo em uma máquina que apresentou o problema.
+- A atualização de Liquify passou nas 13 suítes, nos testes de estresse e no aplicativo Windows compilado (4K e 8000 × 8000, pincel máximo, desfazer/refazer exatos). Run: https://github.com/VasahTS/Doodle/actions/runs/39987901213.
 - A revisão inicial ainda não tinha instalador. A nova pipeline só publica o download após compilar o Rust e testar a abertura real do Windows, isolamento, hover, traço, desfazer/refazer, ORA e preferência gráfica após reabertura. Ainda falta testar a sensação da caneta e as máquinas que apresentaram lag.
 
 ## Problemas conhecidos deste pacote

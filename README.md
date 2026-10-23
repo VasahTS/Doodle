@@ -1,4 +1,4 @@
-> **Windows canvas performance test:** [Download the test installer](https://github.com/VasahTS/Doodle/releases/download/performance-canvas-39977795986-1/Doodle-Performance-Test-Windows-x64-setup.exe). It installs separately as **Doodle Performance Test**, with no automatic updater. See [test steps and known issues](PERFORMANCE-TESTING.md). The stable download below remains Doodle 0.3.0.
+> **Windows Liquify performance test:** [Download the new test installer](https://github.com/VasahTS/Doodle/releases/download/performance-canvas-39987901213-1/Doodle-Performance-Test-Windows-x64-setup.exe). Includes sparse GPU/worker Liquify, CPU fallbacks and 4K/8000 × 8000 validation. It installs separately as **Doodle Performance Test**, with no automatic updater. See [test steps and limits](PERFORMANCE-TESTING.md) and [measured results](docs/performance-liquify.md). The stable download below remains Doodle 0.3.0.
 
 # Doodle
 
@@ -79,3 +79,4 @@ Um app leve para rabiscar: abriu, já está desenhando. Tem camadas, pastas, pre
 Instruções completas em português no [LEIA-ME.md](LEIA-ME.md).
 
 **[Baixar para Windows e Linux](../../releases/latest)**
+
