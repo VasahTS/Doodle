@@ -49,7 +49,7 @@ fn arquivo_inicial() -> Option<String> {
 }
 
 fn main() {
-    let context = tauri::generate_context!();
+    let mut context = tauri::generate_context!();
     let path = dirs::config_dir().map(|p| p.join(&context.config().identifier).join("graphics-mode.txt"));
     let mut applied = read_graphics_mode(path.as_ref());
     if std::env::args().any(|a| a == "--safe-gpu") { applied = "software".into(); }
@@ -60,8 +60,13 @@ fn main() {
     if applied == "software" {
         #[cfg(target_os = "windows")]
         {
-            let previous = std::env::var("WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS").unwrap_or_default();
-            std::env::set_var("WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS", format!("{previous} --disable-gpu"));
+            // WebView2 ignores environment overrides for elevated hosts in recent runtimes.
+            // Pass our compatibility preference through the application API instead.
+            for window in &mut context.config_mut().app.windows {
+                let previous = window.additional_browser_args.take().unwrap_or_else(||
+                    "--disable-features=msWebOOUI,msPdfOOUI,msSmartScreenProtection".into());
+                window.additional_browser_args = Some(format!("{previous} --disable-gpu"));
+            }
         }
         #[cfg(target_os = "linux")]
         std::env::set_var("WEBKIT_DISABLE_COMPOSITING_MODE", "1");

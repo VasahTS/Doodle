@@ -7,6 +7,18 @@ const { chromium } = require('playwright');
 const executable = path.resolve(process.env.DOODLE_NATIVE_EXE || 'src-tauri/target/release/doodle.exe');
 const port = 19222;
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
+const policy = 'HKLM\\Software\\Policies\\Microsoft\\Edge\\WebView2\\AdditionalBrowserArguments';
+let testPolicy = false;
+function configureCiDebugging() {
+  // GitHub Windows runners are elevated. WebView2 150+ ignores their environment
+  // overrides, so scope the CI debugging policy to this executable on the runner.
+  assert.equal(process.env.GITHUB_ACTIONS, 'true', 'This native smoke harness is CI-only');
+  const existing = spawnSync('reg', ['query', policy, '/v', 'doodle.exe'], { windowsHide: true });
+  assert.notEqual(existing.status, 0, 'Refusing to overwrite an existing WebView2 policy');
+  const result = spawnSync('reg', ['add', policy, '/v', 'doodle.exe', '/t', 'REG_SZ', '/d', '--remote-debugging-port=' + port, '/f'], { windowsHide: true });
+  assert.equal(result.status, 0, 'Cannot configure the CI-only WebView2 debugging policy');
+  testPolicy = true;
+}
 
 async function start() {
   assert.equal(process.platform, 'win32');
@@ -50,6 +62,7 @@ function stop(app) {
 (async () => {
   let app;
   try {
+    configureCiDebugging();
     app = await start();
     const errors = [];
     app.page.on('pageerror', e => errors.push(e.message));
@@ -105,6 +118,12 @@ function stop(app) {
     });
     assert.equal(restarted.requested, 'software');
     assert.equal(restarted.applied, 'software');
-    console.log('PASS Native Windows: compatibility preference applies after restart');
-  } finally { if (app) stop(app); }
+    const processes = spawnSync('powershell.exe', ['-NoProfile', '-Command', "Get-CimInstance Win32_Process -Filter \"Name = 'msedgewebview2.exe'\" | Where-Object { $_.CommandLine -like '*com.daniel.doodle.performance-test*' } | Select-Object -ExpandProperty CommandLine"], { windowsHide: true, encoding: 'utf8' });
+    assert.equal(processes.status, 0);
+    assert(processes.stdout.includes('--disable-gpu'), 'Compatibility flag is absent from the actual test WebView2 process');
+    console.log('PASS Native Windows: compatibility preference persists and --disable-gpu reaches WebView2 after restart');
+  } finally {
+    if (app) stop(app);
+    if (testPolicy) spawnSync('reg', ['delete', policy, '/v', 'doodle.exe', '/f'], { windowsHide: true });
+  }
 })().catch(error => { console.error(error); process.exitCode = 1; });
