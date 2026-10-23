@@ -4,6 +4,14 @@ Esta branch contém o código de `Doodle-Performance-Source.zip`, baseado no Doo
 
 O motor de desenho é o mesmo do pacote revisado. O instalador Windows é gerado pelo workflow Canvas performance test installer e publicado em uma pré-release de testes após a compilação e as verificações nativas passarem. Os downloads da release estável 0.3.0 continuam sendo da versão anterior às otimizações.
 
+## Download para os testadores — Windows x64
+
+**[Baixar o instalador de testes](https://github.com/VasahTS/Doodle/releases/download/performance-canvas-39977795986-1/Doodle-Performance-Test-Windows-x64-setup.exe)**
+
+Baixar e executar o arquivo, instalar e abrir o atalho **Doodle Performance Test**. Não é necessário baixar o código-fonte. A [pré-release](https://github.com/VasahTS/Doodle/releases/tag/performance-canvas-39977795986-1) inclui o roteiro e o checksum.
+
+A [compilação nativa](https://github.com/VasahTS/Doodle/actions/runs/39977795986) passou: abertura no Windows/WebView2, identidade separada, bloqueio da atualização estável, hover sem repintar a cena, traço com pressão simulada, desfazer/refazer, ORA e aplicação real da opção de compatibilidade após reabertura. O argumento de compatibilidade agora é enviado pela API nativa, inclusive quando o app é executado como administrador. Ainda são necessários testes com caneta física e nas máquinas que apresentaram lag.
+
 ## Como testar
 
 O foco é comparar a fluidez do canvas com a versão estável, usando o mesmo computador, tamanho de janela, escala do monitor e desenho.

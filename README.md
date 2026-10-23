@@ -1,4 +1,4 @@
-> **Performance test branch:** this branch contains an experimental canvas performance build. See [PERFORMANCE-TESTING.md](PERFORMANCE-TESTING.md) for test steps and known issues. The latest release download below is the stable 0.3.0 build, without these optimizations.
+> **Windows canvas performance test:** [Download the test installer](https://github.com/VasahTS/Doodle/releases/download/performance-canvas-39977795986-1/Doodle-Performance-Test-Windows-x64-setup.exe). It installs separately as **Doodle Performance Test**, with no automatic updater. See [test steps and known issues](PERFORMANCE-TESTING.md). The stable download below remains Doodle 0.3.0.
 
 # Doodle
 
